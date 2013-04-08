@@ -6,42 +6,28 @@
  */
 
 
-#include "echo.pb.h"
 #include "TcpRpcChannel.hpp"
 #include "RpcController.hpp"
 #include "TcpRpcServer.hpp"
 #include "UdpRpcChannel.hpp"
 #include "UdpRpcServer.hpp"
+#include "EchoTestServer.hpp"
+#include "EchoTestClient.hpp"
+#include "Timer.hpp"
+#include "MethodCallIDGenerator.hpp"
 
-using google::protobuf::NewCallback;
-
-
-class EchoServiceImpl: public echo::EchoService {
-public:
-    virtual void Echo(::google::protobuf::RpcController* controller,
-                       const ::echo::EchoRequest* request,
-                       ::echo::EchoResponse* response,
-                       ::google::protobuf::Closure* done) {
-        response->set_response( request->message() );
-        ::sleep( 1 );
-        done->Run();
-    }
-};
-
-
-
-void startTcpEchoClient(  pbrpcpp::TcpRpcServer& rpcServer ) {
-    pbrpcpp::TcpRpcChannel channel( "localhost", "6890" );
+void startTcpEchoClient(  shared_ptr<EchoTestServer<pbrpcpp::TcpRpcServer> > testServer ) {
+    shared_ptr<pbrpcpp::TcpRpcChannel> channel( new pbrpcpp::TcpRpcChannel( "localhost", "6891" ) );
     
     GOOGLE_LOG(INFO) << "TcpRpcChannel is created";
     pbrpcpp::RpcController controller;
     
-    channel.setRequestTimeout( 100 );
-    echo::EchoService::Stub stub(&channel);
+    EchoTestClient client( channel );
     echo::EchoRequest request;
     echo::EchoResponse response;
+    
     request.set_message("hello, world");
-    stub.Echo( &controller, &request, &response, NULL );
+    client.echo( &controller, &request,&response, NULL, 100 );
     //should timeout for this
     if( controller.Failed()) {
         std::cout << "receive error:" << controller.ErrorText() << std::endl;
@@ -51,35 +37,28 @@ void startTcpEchoClient(  pbrpcpp::TcpRpcServer& rpcServer ) {
     
     request.set_message("do you know");
     controller.Reset();
-    channel.setRequestTimeout( 2000 );
-    stub.Echo( &controller, &request, &response, NULL );
+    client.echo( &controller, &request, &response, NULL, 2000 );
     if( controller.Failed()) {
         std::cout << "receive error:" << controller.ErrorText() << std::endl;
     } else {
         std::cout << response.response() << std::endl << std::flush;
     }
     
-    rpcServer.Shutdown();
+    testServer->stop();
 }
 
 void testTcpRpc(){
-    pbrpcpp::TcpRpcServer rpcServer( "localhost", "6890" );
-    EchoServiceImpl echoService;
-    
-    rpcServer.Export( &echoService );    
-    
-    boost::thread client_thread(  boost::bind( startTcpEchoClient, boost::ref(rpcServer) ) );
-    
-    rpcServer.Run();
-    
-    client_thread.join();
-}
+    shared_ptr<pbrpcpp::TcpRpcServer> rpcServer( new pbrpcpp::TcpRpcServer( "localhost", "6891" ) );
+    shared_ptr<EchoTestServer<pbrpcpp::TcpRpcServer> > testServer( new EchoTestServer<pbrpcpp::TcpRpcServer>( rpcServer, 1 ) );
 
+    testServer->start();
+    startTcpEchoClient( testServer );
+}
 
 
 
 void startUdpEchoClient( pbrpcpp::UdpRpcServer& rpcServer ) {
-    pbrpcpp::UdpRpcChannel channel( "localhost", "6890" );
+    pbrpcpp::UdpRpcChannel channel( "localhost", "6881" );
     pbrpcpp::RpcController controller;
     
     channel.setRequestTimeout( 2000 );
@@ -108,8 +87,8 @@ void startUdpEchoClient( pbrpcpp::UdpRpcServer& rpcServer ) {
 }
 
 void testUdpRpc( ) {
-    pbrpcpp::UdpRpcServer rpcServer( "localhost", "6890" );
-    EchoServiceImpl echoService;
+    pbrpcpp::UdpRpcServer rpcServer( "localhost", "6881" );
+    EchoServiceImpl echoService(1);
     
     rpcServer.Export( &echoService );
     

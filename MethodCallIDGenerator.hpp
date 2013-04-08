@@ -30,7 +30,7 @@ namespace pbrpcpp {
         }
     };
 
-}
+}//end name space pbrpcpp
 
 
 #endif	/* METHODCALLUIDGENERATOR_H */

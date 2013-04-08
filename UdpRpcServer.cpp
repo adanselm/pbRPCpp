@@ -6,10 +6,98 @@ using std::ostringstream;
 
 namespace pbrpcpp {
 
+    //ClientData implementation
+
+    UdpRpcServer::ClientData::ClientData(int clientId, int timeout, const udp::endpoint& clientEndpoint)
+    : clientId_(clientId),
+    timeoutTime_(boost::posix_time::microsec_clock::universal_time() + boost::posix_time::seconds(timeout)),
+    clientEndpoint_(clientEndpoint) {
+
+    }
+
+    bool UdpRpcServer::ClientData::isTimeout() const {
+        return timeoutTime_ <= boost::posix_time::microsec_clock::universal_time();
+    }
+
+    void UdpRpcServer::ClientData::setTimeout(int timeout) {
+        timeoutTime_ = boost::posix_time::microsec_clock::universal_time() + boost::posix_time::seconds(timeout);
+    }
+
+
+    //
+    // ClientIdAllocator implementation
+    //
+
+    UdpRpcServer::ClientIdAllocator::ClientIdAllocator()
+    : nextClientId_(0) {
+
+    }
+
+    int UdpRpcServer::ClientIdAllocator::allocClientId(const udp::endpoint& ep) {
+        boost::lock_guard< boost::mutex > guard(mutex_);
+
+        ptr_map< udp::endpoint, ClientData >::iterator iter = clientIds_.find(ep);
+        int clientId = 0;
+
+        //add new client info is not found
+        //update the timeout info is the client is found
+        if (iter == clientIds_.end()) {
+            clientId = nextClientId_++;
+            clientIds_.insert(ep, std::auto_ptr<ClientData>(new ClientData(clientId, CLIENT_TIMEOUT_SECONDS, ep)));
+            clientEndpoints_[ clientId ] = ep;
+        } else {
+            clientId = iter->second->clientId_;
+            iter->second->setTimeout(CLIENT_TIMEOUT_SECONDS);
+        }
+
+        removeTimeoutClients();
+
+        return clientId;
+    }
+
+    bool UdpRpcServer::ClientIdAllocator::getClientEndpoint(int clientId, udp::endpoint& ep) const {
+        boost::lock_guard< boost::mutex > guard(mutex_);
+
+        map< int, udp::endpoint >::const_iterator iter = clientEndpoints_.find(clientId);
+
+        if (iter == clientEndpoints_.end()) {
+            return false;
+        }
+
+        ep = iter->second;
+
+        return true;
+
+    }
+
+    void UdpRpcServer::ClientIdAllocator::removeTimeoutClients() {
+        list< udp::endpoint > timeoutClients;
+
+        //find all the timeout client and put to the timeoutClients list
+        for (ptr_map< udp::endpoint, ClientData >::iterator iter = clientIds_.begin(); iter != clientIds_.end(); iter++) {
+            if (iter->second->isTimeout()) {
+                timeoutClients.push_back(iter->first);
+            }
+        }
+
+        //remove all the timeout client information
+        for (list< udp::endpoint >::const_iterator iter_2 = timeoutClients.begin(); iter_2 != timeoutClients.end(); iter_2++) {
+            ptr_map< udp::endpoint, ClientData >::iterator iter_3 = clientIds_.find(*iter_2);
+            BOOST_VERIFY(iter_3 != clientIds_.end());
+            clientEndpoints_.erase(iter_3->second->clientId_);
+            clientIds_.erase(iter_3);
+        }
+    }
+
+    //
+    // class UdpRpcServer implementation
+    //
+
     UdpRpcServer::UdpRpcServer(const string& listenAddr, const string& listenPort)
-    :listenAddr_(listenAddr),
+    : listenAddr_(listenAddr),
     listenPort_(listenPort),
     nextClientId_(0),
+    io_service_stopped_(true),
     socket_(io_service_) {
 
     }
@@ -17,6 +105,7 @@ namespace pbrpcpp {
     UdpRpcServer::~UdpRpcServer() {
         Shutdown();
     }
+
     void UdpRpcServer::Run() {
         udp::resolver resolver(io_service_);
         udp::resolver::query query(listenAddr_, listenPort_);
@@ -43,21 +132,50 @@ namespace pbrpcpp {
             return;
         }
 
-        GOOGLE_LOG( INFO ) << "success to bind";
         startRead();
-        
+
+        io_service_stopped_ = false;
+
         io_service_.run(error);
-        
-        GOOGLE_LOG( INFO ) << "exit the server";
+
+        io_service_stopped_ = true;
+
+        GOOGLE_LOG(INFO) << "exit the UDP server";
     }
 
     void UdpRpcServer::Shutdown() {
-        if (stop_) {
-            return;
+
+        if (!io_service_stopped_) {
+            while (getProcessingRequests() > 0) {
+                boost::this_thread::yield();
+            }
+
+            io_service_.stop();
+
+            while (!io_service_stopped_);
         }
-        
-        BaseRpcServer::Shutdown();
-        io_service_.stop();
+    }
+
+    bool UdpRpcServer::getLocalEndpoint(udp::endpoint& ep) const {
+        boost::system::error_code error;
+
+        ep = socket_.local_endpoint(error);
+
+        return !error;
+    }
+
+    bool UdpRpcServer::getLocalEndpoint(string& addr, string& port) const {
+        udp::endpoint ep;
+
+        if (getLocalEndpoint(ep)) {
+            addr = ep.address().to_string();
+            ostringstream out;
+
+            out << ep.port();
+            port = out.str();
+            return true;
+        }
+        return false;
     }
 
     void UdpRpcServer::sendResponse(int clientId, const string& msg) {
@@ -66,19 +184,17 @@ namespace pbrpcpp {
             return;
         }
 
-        shared_ptr< ClientData > clientData = clientDataMgr_.removeClient(clientId);
+        udp::endpoint ep;
+        if (clientIdAllocator_.getClientEndpoint(clientId, ep)) {
+            string *s = new string(RpcMessage::serializeNetPacket(msg));
 
-        if (clientData) {
-            ostringstream out;
-
-            Util::writeChar('R', out);
-            Util::writeString(msg, out);
-
-            string *s = new string(out.str());
+            GOOGLE_LOG(INFO) << "start to send " << s->length() << " bytes to server";
 
             socket_.async_send_to(boost::asio::buffer(s->data(), s->length()),
-                    clientData->client_,
-                    boost::bind(&UdpRpcServer::messageSent, this, _1, _2, s ) );
+                    ep,
+                    boost::bind(&UdpRpcServer::messageSent, this, _1, _2, s));
+        } else {
+            GOOGLE_LOG(ERROR) << "fail to send response because no client info is found";
         }
     }
 
@@ -89,22 +205,22 @@ namespace pbrpcpp {
         }
 
         GOOGLE_LOG(INFO) << "start to read message from client";
-        shared_ptr< ClientData > clientData(new ClientData(++nextClientId_));
+        shared_ptr< udp::endpoint > ep(new udp::endpoint());
         socket_.async_receive_from(boost::asio::buffer(msgBuffer_, sizeof ( msgBuffer_)),
-                clientData->client_,
-                boost::bind(&UdpRpcServer::packetReceived, this, _1, _2, clientData) );
+                *ep,
+                boost::bind(&UdpRpcServer::packetReceived, this, _1, _2, ep));
     }
 
     void UdpRpcServer::packetReceived(const boost::system::error_code& ec,
             std::size_t bytes_transferred,
-            shared_ptr< ClientData > clientData) {
+            shared_ptr< udp::endpoint > ep) {
         if (ec) {
             GOOGLE_LOG(INFO) << "fail to read data from client";
             return;
         }
-        
+
         startRead();
-        
+
         try {
             GOOGLE_LOG(INFO) << "a message is read from client with " << bytes_transferred << " bytes";
             string s(msgBuffer_, bytes_transferred);
@@ -116,11 +232,12 @@ namespace pbrpcpp {
             if (ch != 'R' || n + pos != bytes_transferred) {
                 GOOGLE_LOG(ERROR) << "invalid message received from client";
             } else {
-                clientDataMgr_.addClient(clientData);
-                messageReceived(clientData->clientId_, s.substr(pos));
+                messageReceived(clientIdAllocator_.allocClientId(*ep), s.substr(pos));
             }
+        } catch (const std::exception& ex) {
+            GOOGLE_LOG(ERROR) << "catch exception:" << ex.what();
         } catch (...) {
-
+            GOOGLE_LOG(ERROR) << "catch unknown exception";
         }
 
     }
@@ -131,7 +248,9 @@ namespace pbrpcpp {
         delete buf;
         if (ec) {
             GOOGLE_LOG(ERROR) << "fail to send message to client";
-        } 
+        } else {
+            GOOGLE_LOG(INFO) << "success to send " << bytes_transferred << " bytes to server";
+        }
     }
 
-}
+}//end name space pbrpcpp

@@ -26,7 +26,7 @@ using google::protobuf::Message;
 using google::protobuf::Descriptor;
 
 
-namespace pbrpcpp {//begin namespace
+namespace pbrpcpp {
     
     class RpcController;
     
@@ -38,10 +38,16 @@ namespace pbrpcpp {//begin namespace
 
         static void writeMessage( const Message& msg, ostream& out );
 
-
         static void readMessage( istream& in, Message*& msg );
 
         static Message* readMessage( istream& in );
+        /**
+         * check if the <code>msg1</code> and <code>msg2</code> are exactly same content message
+         * @param msg1 the first message
+         * @param msg2 the second message
+         * @return true if the msg1 equals to msg2
+         */
+        static bool equals( const Message& msg1, const Message& msg2 );
 
         static void writeController( const RpcController& controller, ostream& out );
 
@@ -63,7 +69,7 @@ namespace pbrpcpp {//begin namespace
         static string readString( istream& in ) ;
 
     };
-}//end name space
+}//end name space pbrpcpp
 
 
 #endif	/* UTIL_HPP */

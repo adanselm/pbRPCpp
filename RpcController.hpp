@@ -12,6 +12,7 @@
 #include <google/protobuf/service.h>
 #include <set>
 #include <string>
+#include <boost/thread.hpp>
 
 using std::set;
 using std::string;
@@ -50,9 +51,14 @@ namespace pbrpcpp {
         void parseFrom( istream& in );
     private:
         bool canceled_;
+        // set to true if SetFailed is called
         bool failed_;
+        boost::mutex cancelCbMutex_;
+        // set by NotifyOnCancel() method
         set<Closure*> cancelCallbacks_;
+        // Will be invoked if StartCancel is called
         Closure* startCancelCallback_;
+        // the failed reason set by SetFailed() method
         string failedReason_;
 
         friend class BaseRpcChannel;
@@ -61,7 +67,7 @@ namespace pbrpcpp {
 
     };
 
-}
+}//end name space pbrpcpp
 
 #endif	/* RPCCONTROLLER_HPP */
 

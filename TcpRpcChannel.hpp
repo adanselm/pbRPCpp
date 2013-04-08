@@ -13,6 +13,7 @@
 #include <boost/smart_ptr.hpp>
 #include <boost/thread.hpp>
 #include "IoServiceInitializer.hpp"
+#include "RpcMessage.hpp"
 
 using boost::asio::ip::tcp;
 using boost::shared_ptr;
@@ -42,16 +43,19 @@ namespace pbrpcpp {
                        string* buf,
                        boost::function< void (bool, const string&) > resultCb );
         bool extractMessage( string& msg );
+    
     private:
+        volatile bool stop_;
         bool connectTried_;
         string serverAddr_;
         string serverPort_;
-        char msgBuffer_[4096];
+        
+        char msgBuffer_[RpcMessage::TCP_MSG_BUFFER_SIZE];
         string receivedMsg_;
         IoServiceInitializer io_service_initializer_;
         tcp::socket sock_;
     };
-}
+}//end name space pbrpcpp
 
 
 #endif	/* TCPRPCCHANNEL_HPP */

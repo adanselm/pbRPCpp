@@ -9,9 +9,17 @@
 #define	UDPRPCSERVER_HPP
 
 #include "BaseRpcServer.hpp"
+#include "ThreadSafeMap.hpp"
+#include "RpcMessage.hpp"
+#include <list>
+#include <boost/ptr_container/ptr_map.hpp>
 #include <boost/asio.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
+
 
 using boost::asio::ip::udp;
+using boost::ptr_map;
+using std::list;
 
 namespace pbrpcpp {
     class UdpRpcServer: public BaseRpcServer {
@@ -20,57 +28,53 @@ namespace pbrpcpp {
         ~UdpRpcServer();
         void Run();
         void Shutdown();
+        bool getLocalEndpoint( udp::endpoint& ec ) const;
+        bool getLocalEndpoint( string& addr, string& port ) const;
     protected:
         virtual void sendResponse( int clientId, const string& msg );
     private:
         struct ClientData {
-            ClientData( int clientId )
-            :clientId_( clientId )
-            {
-                
-            }
-            int clientId_;
-            udp::endpoint client_;
-            char msgBuffer_[64*1024];
+            /**
+             * 
+             * @param clientId client identifier
+             * @param timeout in seconds
+             * @param clientEndpoint client network address
+             */
+            ClientData( int clientId, int timeout, const udp::endpoint& clientEndpoint );
             
+            bool isTimeout() const;
+            
+            void setTimeout( int timeout ) ;
+            
+            int clientId_;
+            boost::posix_time::ptime timeoutTime_;
+            udp::endpoint clientEndpoint_;
         };
         
-        class ClientDataMgr {
+        class ClientIdAllocator {
+            
         public:
-            void addClient( shared_ptr<ClientData> clientData ) {
-                boost::lock_guard<  boost::mutex > guard( mutex_ );
-                
-                clients_.insert( map< int,  shared_ptr<ClientData> >::value_type( clientData->clientId_, clientData ) );
-            }
-            shared_ptr<ClientData> removeClient( int clientId ) {
-                boost::lock_guard<  boost::mutex > guard( mutex_ );
-                
-                map< int,  shared_ptr<ClientData> >::iterator iter = clients_.find( clientId );
-                
-                if( iter == clients_.end() ) {
-                    return shared_ptr<ClientData>();
-                }
-                
-                shared_ptr<ClientData> ret = iter->second;
-                clients_.erase( iter );
-                return ret;
-            }
-            shared_ptr<ClientData> getClient( int clientId ) {
-                boost::lock_guard<  boost::mutex > guard( mutex_ );
-                
-                map< int,  shared_ptr<ClientData> >::iterator iter = clients_.find( clientId );
-                
-                return ( iter == clients_.end() ) ? shared_ptr<ClientData>(): iter->second;
-            }
+            ClientIdAllocator();            
+            int allocClientId( const udp::endpoint& ep ) ;            
+            bool getClientEndpoint( int clientId, udp::endpoint& ep ) const;
         private:
-            boost::mutex mutex_;
-            map< int,  shared_ptr<ClientData> > clients_;
+            void removeTimeoutClients();
+        private:
+            enum {
+                CLIENT_TIMEOUT_SECONDS = 24*60*60 //client timeout is 24 hours
+            };
+            mutable boost::mutex mutex_;
+            int nextClientId_;
+            ptr_map< udp::endpoint, ClientData > clientIds_;
+            map< int, udp::endpoint > clientEndpoints_;
         };
+        
+                        
     private:
         void startRead( );
         void packetReceived( const boost::system::error_code& ec, 
                         std::size_t bytes_transferred, 
-                        shared_ptr<ClientData> clientData  );
+                        shared_ptr< udp::endpoint > ep  );
         void messageSent( const boost::system::error_code& ec, 
                         std::size_t bytes_transferred, 
                         string* buf );
@@ -78,12 +82,16 @@ namespace pbrpcpp {
         string listenAddr_;
         string listenPort_;
         int nextClientId_;
-        char msgBuffer_[64*1024];
+        // buffer to receive the client message
+        char msgBuffer_[RpcMessage::MAX_UDP_SIZE];
+        bool io_service_stopped_;
         boost::asio::io_service io_service_;
+        //socket to accept the client request
         udp::socket socket_;
-        ClientDataMgr clientDataMgr_;
+        ClientIdAllocator clientIdAllocator_;
+        
     };
-}
+}//end name space pbrpcpp
 
 #endif	/* UDPRPCSERVER_HPP */
 

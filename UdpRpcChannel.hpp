@@ -13,6 +13,7 @@
 #include <boost/smart_ptr.hpp>
 #include <boost/thread.hpp>
 #include "IoServiceInitializer.hpp"
+#include "RpcMessage.hpp"
 
 using boost::asio::ip::udp;
 using boost::shared_ptr;
@@ -36,15 +37,16 @@ namespace pbrpcpp {
                        string* buf,
                        boost::function< void (bool, const string&) > resultCb );
     private:
+        volatile bool stop_;
         string serverAddr_;
         string serverPort_;
-        char msgBuffer_[64*1024];
+        char msgBuffer_[RpcMessage::MAX_UDP_SIZE];
         udp::endpoint remoteEndpoint_;
         udp::endpoint senderEndpoint_;        
         IoServiceInitializer io_service_initializer_;
         udp::socket socket_;
     };
-}
+}//end name space pbrpcpp
 
 #endif	/* UDPRPCCHANNEL_HPP */
 

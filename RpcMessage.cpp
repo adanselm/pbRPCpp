@@ -6,6 +6,7 @@
  */
 
 #include "RpcMessage.hpp"
+#include <sstream>
 
 namespace pbrpcpp {    
     void RpcMessage::serializeRequest( const string& callId,
@@ -61,8 +62,48 @@ namespace pbrpcpp {
     void RpcMessage::parseCancelFrom( istream& in, string& callId ) {
         callId = Util::readString( in );
     }
+    
+    string RpcMessage::serializeNetPacket( const string& packet ) {
+        std::ostringstream out;
+        
+        //write packet start flag: 1 byte
+        Util::writeChar( 'R', out );
+        
+        //write the content length ( 4 bytes ) and content itself
+        Util::writeString( packet, out);
+        
+        return out.str();
+    }
+    
+    bool RpcMessage::extractNetPacket( string& s, string& packet ) {
+        size_t pos = 0;
 
-}
+        //at least 5 bytes for a message
+        if( s.length() < 5 ) {
+            return false;
+        }
+
+        //read start flag
+        char ch = Util::readChar(s, pos);
+        //read content length
+        int n = Util::readInt(s, pos);
+        
+        if( ch != 'R' || n < 0 ) {
+            throw runtime_error( "invalid network packet");
+        }
+        
+        //if s
+        if( pos + n > s.length() ) {
+            return false;
+        }
+        
+        packet = s.substr( pos, n );        
+        s.erase(0, n + pos);
+        
+        return true;
+    }
+
+}//end name space pbrpcpp
 
 
 

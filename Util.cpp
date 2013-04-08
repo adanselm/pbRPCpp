@@ -8,9 +8,13 @@
 
 #include "Util.hpp"
 #include "RpcController.hpp"
+#include <sstream>
 
 using google::protobuf::DescriptorPool;
 using google::protobuf::MessageFactory;
+
+using std::istringstream;
+using std::ostringstream;
 
 namespace pbrpcpp {
 
@@ -52,6 +56,16 @@ namespace pbrpcpp {
         return msg;
     }
 
+    bool Util::equals( const Message& msg1, const Message& msg2 ) {
+        ostringstream out_1;
+        ostringstream out_2;
+        
+        writeMessage( msg1, out_1 );
+        writeMessage( msg2, out_2 );
+        
+        return out_1.str() == out_2.str();
+    }
+    
     void Util::writeController( const RpcController& controller, ostream& out ) {
         controller.serializeTo( out );
     }
@@ -144,7 +158,7 @@ namespace pbrpcpp {
         }
     }
 
-}
+}//end name space pbrpcpp
     
 
 

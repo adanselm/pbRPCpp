@@ -96,7 +96,7 @@ namespace pbrpcpp {
         boost::mutex mutex_;
         std::queue< T > datas_;
     };
-}
+}//end name space pbrpcpp
 
 #endif	/* QUEUE_HPP */
 

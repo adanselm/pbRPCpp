@@ -14,14 +14,12 @@ using std::istringstream;
 namespace pbrpcpp {
     
     BaseRpcChannel::BaseRpcChannel( )
-    :stop_( false ),
-    timeoutMillis_( 0 )
+    :timeoutMillis_( 0 )
     {        
         responseProcThreads_.create_thread( boost::bind( &BaseRpcChannel::takeAndProcessResponse, this ));
     }
 
     BaseRpcChannel::~BaseRpcChannel() {
-        stop_ = true;
         responseProcThreads_.interrupt_all();
         responseProcThreads_.join_all();
     }
@@ -43,10 +41,7 @@ namespace pbrpcpp {
         bool* completed = ( done == 0 )?( new bool( false ) ): 0;        
         ResponseParam* respParam = new ResponseParam( controller, response, done, completed );
 
-        {
-            boost::lock_guard< boost::mutex > guard( respMutex_ );
-            waitingResponses_[ callId ] = respParam;
-        }
+        waitingResponses_[ callId ] = respParam ;
 
         ostringstream out;
 
@@ -66,23 +61,9 @@ namespace pbrpcpp {
         }
     }
 
-    BaseRpcChannel::ResponseParam* BaseRpcChannel::removeRespParam( const string& callId ) {
-        boost::lock_guard< boost::mutex > guard( respMutex_ );
-
-        map< string, ResponseParam* >::iterator iter = waitingResponses_.find( callId );
-
-        if( iter == waitingResponses_.end() ) {
-            return 0;
-        }
-
-        ResponseParam* respParam = iter->second;
-        waitingResponses_.erase( iter );
-        return respParam;
-    }
-    
     void BaseRpcChannel::messageSent( bool success, const string& reason, string callId ) {
         if( ! success ) {
-            ResponseParam* respParam = removeRespParam( callId );
+            ResponseParam* respParam = waitingResponses_.erase( callId );
             if( respParam ) {
                 timer_.cancel( callId );
                 RpcController* pController = dynamic_cast<RpcController*>( respParam->controller );
@@ -106,13 +87,13 @@ namespace pbrpcpp {
 
     void BaseRpcChannel::startCancel( string callId ) {
 
-        if( !isCallCompleted( callId ) ) {
+        //if it is on-going
+        if( waitingResponses_.contains( callId ) ) {
             ostringstream out;
 
             RpcMessage::serializeCancel( callId, out );
 
             sendMessage( out.str(), boost::bind( &BaseRpcChannel::messageSent, this, _1, _2, callId )  );
-
         }
     }
 
@@ -121,13 +102,16 @@ namespace pbrpcpp {
     }
     
     void BaseRpcChannel::takeAndProcessResponse() {
-        while( !stop_ ) {
+        for( ; ; ) {
             try {
                 string resp = responses_.take();
                 
                 if( !resp.empty() ) {
                     processResponse( resp );
                 }
+            }catch( const boost::thread_interrupted& ex ) {
+                GOOGLE_LOG( INFO ) << "thread interrupted";
+                break;
             }catch( ... ) {
                 
             }
@@ -140,20 +124,20 @@ namespace pbrpcpp {
 
                     switch( msgType ) {
                         case RpcMessage::RESPONSE_MSG: 
-                        {
-                            GOOGLE_LOG( INFO ) << "received a response message";
+                        {                            
                             string callId;
                             RpcController controller;
                             Message* response = 0;
                             RpcMessage::parseResponseFrom( in, callId, controller, response );
-                            ResponseParam* respParam = removeRespParam( callId );
+                            GOOGLE_LOG( INFO ) << "received a response message, callId:" << callId;
+                            ResponseParam* respParam = waitingResponses_.erase( callId );
                             if( respParam ) {                            
                                 timer_.cancel( callId );
                                 RpcController* pController = dynamic_cast<RpcController*>( respParam->controller );
                                 if( pController ) {
                                     copyController( *pController, controller );
                                 }
-                                if( respParam->response ) {
+                                if( respParam->response && response ) {
                                     copyMessage( *(respParam->response), *response );
                                 }
 
@@ -172,8 +156,10 @@ namespace pbrpcpp {
                         break;
                     }
 
-            }catch( ... ) {
-
+            }catch( const std::exception& ex) {
+                GOOGLE_LOG( ERROR ) << "catch exception:" << ex.what() ;
+            } catch( ... ) {
+                GOOGLE_LOG( ERROR ) << "catch unknown exception";
             }
     }
 
@@ -197,13 +183,11 @@ namespace pbrpcpp {
     
 
     bool BaseRpcChannel::isCallCompleted( const string& callId )  {
-        boost::lock_guard< boost::mutex > guard( respMutex_ );
-
-        return waitingResponses_.find( callId ) == waitingResponses_.end();
+        return !waitingResponses_.contains( callId );
     }
     
     void BaseRpcChannel::handleRequestTimeout( string callId ) {
-        ResponseParam* respParam = removeRespParam( callId );
+        ResponseParam* respParam = waitingResponses_.erase( callId );
         if( respParam ) {
             RpcController* pController = dynamic_cast<RpcController*> (respParam->controller);
             if (pController) {
@@ -223,6 +207,6 @@ namespace pbrpcpp {
         }
     }
 
-}
+}//end name space pbrpcpp
 
 

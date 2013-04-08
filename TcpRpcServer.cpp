@@ -12,26 +12,21 @@ namespace pbrpcpp {
     }
 
     TcpRpcServer::ClientData::~ClientData() {
+        boost::system::error_code ec;
+        GOOGLE_LOG( INFO ) << "TcpRpcServer::ClientData::~ClientData";
+        clientSock_->cancel( ec );
+        clientSock_->shutdown( tcp::socket::shutdown_both, ec );
+        clientSock_->close( ec );
         delete clientSock_;
     }
 
     bool TcpRpcServer::ClientData::extractMessage(string& msg) {
         try {
-            size_t pos = 0;
-
-            char ch = Util::readChar(receivedMsg_, pos);
-            int n = Util::readInt(receivedMsg_, pos);
-            if (ch != 'R' || n < 0) {
-                boost::system::error_code ec;
-
-                clientSock_->close(ec);
-                return false;
-            } else if (pos + n <= receivedMsg_.length()) {
-                msg = receivedMsg_.substr(pos, n);
-                receivedMsg_.erase(0, n + pos);
-                return true;
-            }
+            return RpcMessage::extractNetPacket( receivedMsg_, msg );                        
         } catch (...) {
+            boost::system::error_code ec;
+
+            clientSock_->close(ec);
         }
         return false;
     }
@@ -39,7 +34,8 @@ namespace pbrpcpp {
     TcpRpcServer::TcpRpcServer( const string& listenAddr, const string& listenPort)
     :listenAddr_( listenAddr ),
     listenPort_( listenPort ),
-    nextClientId_( 0 )
+    nextClientId_( 0 ),
+    io_service_stopped_( true )
     {        
     }
     
@@ -63,34 +59,64 @@ namespace pbrpcpp {
             acceptor_->set_option( tcp::socket::reuse_address(true), ec );
             startAccept();
 
-            io_service_.run( ec );
+            io_service_stopped_ = false;
+            io_service_.run( ec );            
+            io_service_stopped_ = true;
         }
     }
     
-    void TcpRpcServer::Shutdown() {
-        if( stop_ ) {
+    void TcpRpcServer::Shutdown() {        
+        if( io_service_stopped_ ) {
             return;
         }
         
         if( acceptor_ ) {
             boost::system::error_code ec;
             acceptor_->cancel( ec );
+            acceptor_->close( ec );
         }
         
-        BaseRpcServer::Shutdown();
+        while( getProcessingRequests() > 0 ) {
+            boost::this_thread::yield();
+        }
         
+        clientDataMgr_.erase_all();
+
         io_service_.stop();
+        
+        while( !io_service_stopped_ );
     }
 
-    void TcpRpcServer::sendResponse( int clientId, const string& msg ) {
-        shared_ptr< ClientData > clientData = clientDataMgr_.getClient( clientId );
-        if( clientData ) {
+    bool TcpRpcServer::getLocalEndpoint( tcp::endpoint& ep ) const {
+            shared_ptr<tcp::acceptor> tmp = acceptor_;
+            if( tmp ) {
+                boost::system::error_code ec;                
+                ep = tmp->local_endpoint( ec );
+                return !ec;
+            } else {
+                return false;
+            }
+        }
+    
+    bool TcpRpcServer::getLocalEndpoint( string& addr, string& port ) const {
+        tcp::endpoint ep;
+        
+        if( getLocalEndpoint( ep )) {
+            addr = ep.address().to_string();
             ostringstream out;
             
-            Util::writeChar( 'R', out );
-            Util::writeString( msg, out );
+            out << ep.port();
+            port = out.str();
+            return true;
+        }
+        return false;
+    }
+    
+    void TcpRpcServer::sendResponse( int clientId, const string& msg ) {
+        shared_ptr< ClientData > clientData = clientDataMgr_.get( clientId );
+        if( clientData ) {
             
-            string* s = new string( out.str() );
+            string* s = new string( RpcMessage::serializeNetPacket( msg ));
 
             GOOGLE_LOG( INFO ) << "send response to client with " << s->length() << " bytes";
             
@@ -110,13 +136,15 @@ namespace pbrpcpp {
     }
     
     void TcpRpcServer::connAccepted( tcp::socket* clientSock, const boost::system::error_code& ec ) {
-        if( ec ) {
+        if( ec || stop_ ) {
             GOOGLE_LOG( ERROR ) << "fail to accept connection from client";
             delete clientSock;
         } else {
             GOOGLE_LOG( INFO ) << "a client connection is accepted";
+            boost::system::error_code error;
+            clientSock->set_option(tcp::socket::reuse_address(true), error );
             shared_ptr< ClientData > clientData( new ClientData( nextClientId_++, clientSock ) );
-            clientDataMgr_.addClient( clientData );
+            clientDataMgr_.insert( clientData->clientId_, clientData );
             startRead( clientData );
             startAccept();
         }
@@ -136,7 +164,7 @@ namespace pbrpcpp {
                         shared_ptr<ClientData> clientData ) {
         if( ec ) {
             GOOGLE_LOG( ERROR ) << "fail to receive data from client";
-            clientDataMgr_.removeClient( clientData->clientId_ );
+            clientDataMgr_.erase( clientData->clientId_ );
             return;
         }
         
@@ -167,4 +195,4 @@ namespace pbrpcpp {
     }
     
     
-}
+}//end name space pbrpcpp

@@ -10,16 +10,15 @@
 
 
 #include <string>
-#include <map>
 #include <google/protobuf/service.h>
 #include <boost/smart_ptr.hpp>
 #include <boost/thread.hpp>
 #include "Timer.hpp"
 #include "RpcController.hpp"
 #include "Queue.hpp"
+#include "ThreadSafeMap.hpp"
 
 using boost::shared_ptr;
-using std::map;
 using std::string;
 using google::protobuf::MethodDescriptor;
 using google::protobuf::Message;
@@ -64,28 +63,50 @@ namespace pbrpcpp {
             bool* completed;
         };
 
+        /**
+         * take the received response from <code>responses_</code> and process it
+         */
         void takeAndProcessResponse();
+        
+        /**
+         * process response taken from <code>responses_</code>. this method is called
+         * by takeAndProcessResponse() method
+         * @param responseMsg the response message from server
+         */
         void processResponse( const string& responseMsg);
+        
+        /**
+         * the callback for the the sendMessage() method
+         * 
+         * @param success true if the message is sent to server successfully,false if
+         * the message is failed to send to server
+         * @param reason the reason if the message is failed to send to server
+         * @param callId which call the message is sent about
+         */
         void messageSent( bool success, const string& reason, string callId );
-        ResponseParam* removeRespParam( const string& callId );
+        
         void startCancel( string callId );
         void copyController( RpcController& dest, const RpcController& src );
         void copyMessage( Message& dest, const Message& src );
         bool isCallCompleted( const string& callId );
         void handleRequestTimeout( string callId );
         
-    protected:
-        volatile bool stop_;
     private:
+        // <= 0, no request timeout, > 0, request timeout in milliseconds
         int timeoutMillis_;
-        boost::mutex respMutex_;
-        map< string, ResponseParam* > waitingResponses_;
+        // map for waiting response: key is request callId, value is the parameters in the CallMethod())
+        ThreadSafeMap< string, ResponseParam* > waitingResponses_;
+        
+        // timer management for request
         Timer<string> timer_;
+        
+        //the received but not processed response messages
         Queue<string> responses_;
+        //the response process thread
         boost::thread_group responseProcThreads_;
     };
 
-}
+}//end name space pbrpcpp
 
 #endif	/* BASERPCCHANNEL_HPP */
 

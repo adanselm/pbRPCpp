@@ -1,4 +1,5 @@
 #include "UdpRpcChannel.hpp"
+#include "RpcMessage.hpp"
 #include <sstream>
 
 using std::ostringstream;
@@ -6,7 +7,8 @@ using std::ostringstream;
 namespace pbrpcpp {
     
     UdpRpcChannel::UdpRpcChannel(const string& serverAddr, const string& serverPort)
-    : serverAddr_(serverAddr),
+    : stop_( false ),
+    serverAddr_(serverAddr),
     serverPort_(serverPort),
     socket_( io_service_initializer_.get_io_service() ) {
         
@@ -52,13 +54,8 @@ namespace pbrpcpp {
         if( stop_ ) {
             return;
         }
-        
-        ostringstream out;
-        
-        Util::writeChar( 'R', out );
-        Util::writeString( msg, out);
-        
-        string* s = new string( out.str() );
+                
+        string* s = new string( RpcMessage::serializeNetPacket( msg ) );
 
         GOOGLE_LOG( INFO ) << "start to send message to server with " << s->length() << " bytes";
         
@@ -92,15 +89,10 @@ namespace pbrpcpp {
         string s(msgBuffer_, bytes_transferred);
 
         try {
-            size_t pos = 0;
-
-            char ch = Util::readChar(s, pos);
-            int n = Util::readInt(s, pos);
-
-            if (ch != 'R' || n + pos != bytes_transferred) {
-                return;
-            } else {
-                responseReceived(s.substr(pos));
+            string resp_msg;
+            
+            while( RpcMessage::extractNetPacket( s, resp_msg ) ) {
+                responseReceived( resp_msg );
             }
         } catch (...) {
 
@@ -123,4 +115,4 @@ namespace pbrpcpp {
             resultCb(true, "success to send the packet to server");
         }
     }
-}
+}//end name space pbrpcpp

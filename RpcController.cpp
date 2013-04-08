@@ -25,7 +25,10 @@ namespace pbrpcpp {
         canceled_ = false;
         failed_ = false;
         failedReason_ = "";
-        cancelCallbacks_.clear();
+        {
+            boost::lock_guard< boost::mutex > guard( cancelCbMutex_ );
+            cancelCallbacks_.clear();
+        }
         startCancelCallback_ = 0;
     }
 
@@ -65,6 +68,8 @@ namespace pbrpcpp {
         if( canceled_ ) {
             callback->Run();
         } else {
+            boost::lock_guard< boost::mutex > guard( cancelCbMutex_ );
+            
             cancelCallbacks_.insert( callback );
         }        
     }
@@ -76,10 +81,16 @@ namespace pbrpcpp {
 
         canceled_ = true;
 
-        for( set<Closure*>::iterator iter = cancelCallbacks_.begin(); iter != cancelCallbacks_.end(); iter++ ) {
+        set<Closure*> tmp; 
+        {
+            boost::lock_guard< boost::mutex > guard( cancelCbMutex_ );
+            tmp = cancelCallbacks_;
+            cancelCallbacks_.clear();
+        }
+        
+        for( set<Closure*>::iterator iter = tmp.begin(); iter != tmp.end(); iter++ ) {
             (*iter)->Run();
         }
-        cancelCallbacks_.clear();
     }
     void RpcController::setStartCancelCallback( Closure* callback ) {
         startCancelCallback_ = callback;
@@ -102,5 +113,5 @@ namespace pbrpcpp {
     }
 
 
-}
+}//end name space pbrpcpp
 
