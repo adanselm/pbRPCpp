@@ -156,6 +156,7 @@ namespace pbrpcpp {
                 throw runtime_error( "fail to read a string from input stream");
             }
         }
+        return string();
     }
 
 }//end name space pbrpcpp
