@@ -9,15 +9,17 @@
 #define	TCPRPCSERVER_HPP
 
 #include "BaseRpcServer.hpp"
-#include "ThreadSafeMap.hpp"
 #include "RpcMessage.hpp"
 #include <boost/asio.hpp>
 #include <boost/smart_ptr.hpp>
 
 using boost::asio::ip::tcp;
 using boost::shared_ptr;
+using boost::scoped_ptr;
 
 namespace pbrpcpp {
+    template <class T, class U> class ThreadSafeMap;
+
     class TcpRpcServer: public BaseRpcServer {
     public:
         TcpRpcServer( const string& listenAddr, const string& listenPort);
@@ -67,7 +69,7 @@ namespace pbrpcpp {
         volatile bool io_service_stopped_;
         boost::asio::io_service io_service_;
         shared_ptr<tcp::acceptor> acceptor_;
-        ThreadSafeMap< int, shared_ptr<ClientData> > clientDataMgr_;
+        scoped_ptr< ThreadSafeMap< int, shared_ptr<ClientData> > > clientDataMgr_;
     };
 }//end name space pbrpcpp
 

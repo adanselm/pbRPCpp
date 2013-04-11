@@ -12,13 +12,14 @@
 #include <boost/asio.hpp>
 #include <boost/smart_ptr.hpp>
 #include <boost/thread.hpp>
-#include "IoServiceInitializer.hpp"
 #include "RpcMessage.hpp"
 
 using boost::asio::ip::udp;
 using boost::shared_ptr;
+using boost::scoped_ptr;
 
 namespace pbrpcpp {
+    class IoServiceInitializer;
     
     class UdpRpcChannel: public BaseRpcChannel {
     public:
@@ -43,7 +44,7 @@ namespace pbrpcpp {
         char msgBuffer_[RpcMessage::MAX_UDP_SIZE];
         udp::endpoint remoteEndpoint_;
         udp::endpoint senderEndpoint_;        
-        IoServiceInitializer io_service_initializer_;
+        scoped_ptr<IoServiceInitializer> io_service_initializer_;
         udp::socket socket_;
     };
 }//end name space pbrpcpp

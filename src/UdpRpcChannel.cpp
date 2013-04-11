@@ -1,5 +1,6 @@
 #include "UdpRpcChannel.hpp"
 #include "RpcMessage.hpp"
+#include "IoServiceInitializer.hpp"
 #include <sstream>
 
 using std::ostringstream;
@@ -10,9 +11,10 @@ namespace pbrpcpp {
     : stop_( false ),
     serverAddr_(serverAddr),
     serverPort_(serverPort),
-    socket_( io_service_initializer_.get_io_service() ) {
+    io_service_initializer_( new IoServiceInitializer() ),
+    socket_( io_service_initializer_->get_io_service() ) {
         
-        udp::resolver resolver(io_service_initializer_.get_io_service() );
+        udp::resolver resolver(io_service_initializer_->get_io_service() );
         udp::resolver::query query(serverAddr_, serverPort_);
         boost::system::error_code error;
 
@@ -47,7 +49,7 @@ namespace pbrpcpp {
 
         socket_.cancel(error);
         socket_.close(error);
-        io_service_initializer_.stop();
+        io_service_initializer_->stop();
     }
 
     void UdpRpcChannel::sendMessage(const string& msg, boost::function< void (bool, const string&) > resultCb) {

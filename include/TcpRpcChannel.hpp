@@ -12,14 +12,15 @@
 #include <boost/asio.hpp>
 #include <boost/smart_ptr.hpp>
 #include <boost/thread.hpp>
-#include "IoServiceInitializer.hpp"
 #include "RpcMessage.hpp"
 
 using boost::asio::ip::tcp;
 using boost::shared_ptr;
+using boost::scoped_ptr;
 
 namespace pbrpcpp {
-    
+    class IoServiceInitializer;
+
     class TcpRpcChannel: public BaseRpcChannel {
     public:
         TcpRpcChannel( const string& serverAddr, const string& serverPort );
@@ -52,7 +53,7 @@ namespace pbrpcpp {
         
         char msgBuffer_[RpcMessage::TCP_MSG_BUFFER_SIZE];
         string receivedMsg_;
-        IoServiceInitializer io_service_initializer_;
+        scoped_ptr<IoServiceInitializer> io_service_initializer_;
         tcp::socket sock_;
     };
 }//end name space pbrpcpp

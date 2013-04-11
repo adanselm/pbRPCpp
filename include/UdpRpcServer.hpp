@@ -9,7 +9,6 @@
 #define	UDPRPCSERVER_HPP
 
 #include "BaseRpcServer.hpp"
-#include "ThreadSafeMap.hpp"
 #include "RpcMessage.hpp"
 #include <list>
 #include <boost/ptr_container/ptr_map.hpp>

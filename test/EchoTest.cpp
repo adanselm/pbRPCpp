@@ -17,7 +17,7 @@
 #include "MethodCallIDGenerator.hpp"
 
 void startTcpEchoClient(  shared_ptr<EchoTestServer<pbrpcpp::TcpRpcServer> > testServer ) {
-    shared_ptr<pbrpcpp::TcpRpcChannel> channel( new pbrpcpp::TcpRpcChannel( "localhost", "6891" ) );
+    shared_ptr<pbrpcpp::TcpRpcChannel> channel( new pbrpcpp::TcpRpcChannel( "localhost", "6880" ) );
     
     GOOGLE_LOG(INFO) << "TcpRpcChannel is created";
     pbrpcpp::RpcController controller;
@@ -48,7 +48,7 @@ void startTcpEchoClient(  shared_ptr<EchoTestServer<pbrpcpp::TcpRpcServer> > tes
 }
 
 void testTcpRpc(){
-    shared_ptr<pbrpcpp::TcpRpcServer> rpcServer( new pbrpcpp::TcpRpcServer( "localhost", "6891" ) );
+    shared_ptr<pbrpcpp::TcpRpcServer> rpcServer( new pbrpcpp::TcpRpcServer( "localhost", "6880" ) );
     shared_ptr<EchoTestServer<pbrpcpp::TcpRpcServer> > testServer( new EchoTestServer<pbrpcpp::TcpRpcServer>( rpcServer, 1 ) );
 
     testServer->start();

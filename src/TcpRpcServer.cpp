@@ -1,4 +1,5 @@
 #include "TcpRpcServer.hpp"
+#include "ThreadSafeMap.hpp"
 #include <boost/bind.hpp>
 #include <sstream>
 
@@ -35,7 +36,8 @@ namespace pbrpcpp {
     :listenAddr_( listenAddr ),
     listenPort_( listenPort ),
     nextClientId_( 0 ),
-    io_service_stopped_( true )
+    io_service_stopped_( true ),
+    clientDataMgr_( new ThreadSafeMap< int, shared_ptr<ClientData> >() )
     {        
     }
     
@@ -80,11 +82,13 @@ namespace pbrpcpp {
             boost::this_thread::yield();
         }
         
-        clientDataMgr_.erase_all();
+        clientDataMgr_->erase_all();
 
         io_service_.stop();
         
-        while( !io_service_stopped_ );
+        while( !io_service_stopped_ ) {
+            boost::this_thread::yield();
+        }
     }
 
     bool TcpRpcServer::getLocalEndpoint( tcp::endpoint& ep ) const {
@@ -113,7 +117,7 @@ namespace pbrpcpp {
     }
     
     void TcpRpcServer::sendResponse( int clientId, const string& msg ) {
-        shared_ptr< ClientData > clientData = clientDataMgr_.get( clientId );
+        shared_ptr< ClientData > clientData = clientDataMgr_->get( clientId );
         if( clientData ) {
             
             string* s = new string( RpcMessage::serializeNetPacket( msg ));
@@ -144,7 +148,7 @@ namespace pbrpcpp {
             boost::system::error_code error;
             clientSock->set_option(tcp::socket::reuse_address(true), error );
             shared_ptr< ClientData > clientData( new ClientData( nextClientId_++, clientSock ) );
-            clientDataMgr_.insert( clientData->clientId_, clientData );
+            clientDataMgr_->insert( clientData->clientId_, clientData );
             startRead( clientData );
             startAccept();
         }
@@ -164,7 +168,7 @@ namespace pbrpcpp {
                         shared_ptr<ClientData> clientData ) {
         if( ec ) {
             GOOGLE_LOG( ERROR ) << "fail to receive data from client";
-            clientDataMgr_.erase( clientData->clientId_ );
+            clientDataMgr_->erase( clientData->clientId_ );
             return;
         }
         
