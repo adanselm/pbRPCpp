@@ -17,6 +17,7 @@
 #include "Util.hpp"
 #include "RpcMessage.hpp"
 #include <gtest/gtest.h>
+#include <boost/scoped_ptr.hpp>
 
 
 using google::protobuf::NewCallback;
@@ -41,25 +42,22 @@ void responseReceived( bool* received ) {
 
 TEST( RPCMessageTest, RequestSerialization ) {
     string callId = pbrpcpp::MethodCallIDGenerator::generateID();
-    const MethodDescriptor* methodDescriptor = DescriptorPool::generated_pool()->FindMethodByName( "echo.EchoService.Echo");
+  const MethodDescriptor* methodDescriptor( DescriptorPool::generated_pool()->FindMethodByName( "echo.EchoService.Echo") );
     
     EXPECT_TRUE( methodDescriptor != 0 );
     
-    echo::EchoRequest request;    
-    
-    request.set_message("hello, world"); 
-    
+    echo::EchoRequest request;
+    request.set_message("hello, world");
     ostringstream out;
     
     pbrpcpp::RpcMessage::serializeRequest( callId, *methodDescriptor,  request, out );
     
     istringstream in( out.str() );
-    
     EXPECT_EQ( pbrpcpp::Util::readInt( in ), (int)pbrpcpp::RpcMessage::REQUEST_MSG );
     
     string newCallId;
     const MethodDescriptor* newMethodDescriptor = 0;
-    Message* newRequest = 0;
+    Message* newRequest;
     
     pbrpcpp::RpcMessage::parseRequestFrom( in, newCallId, newMethodDescriptor, newRequest );
     
@@ -67,6 +65,7 @@ TEST( RPCMessageTest, RequestSerialization ) {
     EXPECT_EQ( methodDescriptor, newMethodDescriptor );
     EXPECT_TRUE( newRequest != 0 );
     EXPECT_TRUE( pbrpcpp::Util::equals( request, *newRequest ) );
+  delete newRequest;
 }
 
 TEST( RPCMessageTest, ResponseSerialization ) {
@@ -125,7 +124,7 @@ TEST( RPCMessageTest, ResponseSerialization ) {
     controller.Reset();
     EXPECT_FALSE( controller.IsCanceled());
     EXPECT_FALSE( controller.Failed() );    
-     
+  delete newResponse;
 }
 
 TEST( RPCMessageTest, CancelSerialization ) {
