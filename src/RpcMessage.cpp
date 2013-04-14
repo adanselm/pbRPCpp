@@ -43,20 +43,20 @@ namespace pbrpcpp {
     }
 
 
-    void RpcMessage::parseRequestFrom( istream& in, string& callId, const MethodDescriptor*& method, Message*& request ) {
+    void RpcMessage::parseRequestFrom( istream& in, string& callId, const MethodDescriptor*& method, shared_ptr<Message>& request ) {
         callId = Util::readString( in );
         method = Util::readMethodDescriptor( in );
-        request = Util::readMessage( in );
+        request.reset();
+        Util::readMessage( in, request );
     }
 
-    void RpcMessage::parseResponseFrom( istream& in, string& callId, RpcController& controller, Message*& response ) {
+    void RpcMessage::parseResponseFrom( istream& in, string& callId, RpcController& controller, shared_ptr<Message>& response ) {
         callId = Util::readString( in );
         Util::readController( in, controller );
         char c = in.get();
         if( c == 'Y') {
-            response = Util::readMessage( in );
-        } else {
-            response = 0;
+          response.reset();
+          Util::readMessage( in, response );
         }
     }
 

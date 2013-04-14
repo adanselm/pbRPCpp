@@ -9,6 +9,7 @@
 #include "Util.hpp"
 #include "RpcController.hpp"
 #include <sstream>
+#include <boost/scoped_array.hpp>
 
 using google::protobuf::DescriptorPool;
 using google::protobuf::MessageFactory;
@@ -32,24 +33,23 @@ namespace pbrpcpp {
     }
 
 
-    void Util::readMessage( istream& in, Message*& msg ) {
+    void Util::readMessage( istream& in, shared_ptr<Message>& msg ) {
         const Descriptor* reqDescriptor = DescriptorPool::generated_pool()->FindMessageTypeByName( readString( in ) );
+        msg.reset();
         if( reqDescriptor ) {
-                msg = MessageFactory::generated_factory()->GetPrototype( reqDescriptor )->New();
-                if( msg ) {
-                    msg->ParsePartialFromIstream( &in );
-                } else {
-                    throw runtime_error( "fail to read message");
+                msg.reset( MessageFactory::generated_factory()->GetPrototype( reqDescriptor )->New() );
+                if( msg && msg->ParsePartialFromIstream( &in ) ) {
+                  return;
                 }
+                msg.reset();
+                throw runtime_error( "fail to read message" );
         } else {
             throw runtime_error( "fail to read Message");
         }
-
-
     }
 
-    Message* Util::readMessage( istream& in ) {
-        Message* msg = 0;
+    shared_ptr<Message> Util::readMessage( istream& in ) {
+        shared_ptr<Message> msg;
 
         readMessage( in, msg );
 
@@ -144,13 +144,12 @@ namespace pbrpcpp {
     string Util::readString( istream& in ) {
         int n = readInt( in );
         if( n > 0 ) {
-            char* buf = new char[ n ];
+            boost::scoped_array<char> buf( new char[n] );
 
-            in.read( buf, n );
+            in.read( buf.get(), n );
 
             if( in.gcount() == n ) {
-                string s( buf, n );
-                delete []buf;
+                string s( buf.get(), n );
                 return s;
             } else {
                 throw runtime_error( "fail to read a string from input stream");

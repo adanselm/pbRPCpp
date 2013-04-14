@@ -13,8 +13,7 @@
 namespace pbrpcpp {
     RpcController::RpcController()
     :canceled_( false ),
-    failed_( false ),
-    startCancelCallback_( 0 )
+    failed_( false )
     {
 
     }
@@ -25,11 +24,11 @@ namespace pbrpcpp {
         canceled_ = false;
         failed_ = false;
         failedReason_ = "";
+        cancelFunc_.clear();
         {
             boost::lock_guard< boost::mutex > guard( cancelCbMutex_ );
             cancelCallbacks_.clear();
         }
-        startCancelCallback_ = 0;
     }
 
     bool RpcController::Failed() const {
@@ -41,8 +40,8 @@ namespace pbrpcpp {
     }
 
     void RpcController::StartCancel() {
-        if( startCancelCallback_  ) {
-            startCancelCallback_->Run();
+        if( !cancelFunc_.empty() ) {
+          cancelFunc_();
         }
     }
 
@@ -74,26 +73,19 @@ namespace pbrpcpp {
         }        
     }
 
-    void RpcController::cancel() {
-        if( canceled_ ) {
-            return;
-        }
-
-        canceled_ = true;
-
+    void RpcController::complete() {
         set<Closure*> tmp; 
         {
             boost::lock_guard< boost::mutex > guard( cancelCbMutex_ );
-            tmp = cancelCallbacks_;
-            cancelCallbacks_.clear();
+            tmp.swap( cancelCallbacks_ );
         }
         
         for( set<Closure*>::iterator iter = tmp.begin(); iter != tmp.end(); iter++ ) {
             (*iter)->Run();
         }
     }
-    void RpcController::setStartCancelCallback( Closure* callback ) {
-        startCancelCallback_ = callback;
+    void RpcController::setStartCancelCallback( const boost::function<void()>& cancelFunc ) {
+      cancelFunc_ = cancelFunc;
     }
 
     void RpcController::serializeTo( ostream& out ) const {

@@ -96,7 +96,7 @@ namespace pbrpcpp {
         // <= 0, no request timeout, > 0, request timeout in milliseconds
         int timeoutMillis_;
         // map for waiting response: key is request callId, value is the parameters in the CallMethod())
-        scoped_ptr< ThreadSafeMap< string, ResponseParam* > > waitingResponses_;
+        scoped_ptr< ThreadSafeMap< string, shared_ptr<ResponseParam> > > waitingResponses_;
         
         // timer management for request
         scoped_ptr< Timer<string> > timer_;

@@ -120,7 +120,7 @@ namespace pbrpcpp {
             return;
         }
 
-        string* s = new string(RpcMessage::serializeNetPacket(msg));
+        shared_ptr<string> s( new string(RpcMessage::serializeNetPacket(msg)) );
 
         GOOGLE_LOG(INFO) << "start to send a message to server with " << s->length() << " bytes";
         boost::asio::async_write(sock_,
@@ -153,9 +153,8 @@ namespace pbrpcpp {
 
     void TcpRpcChannel::handleDataWrite(const boost::system::error_code& ec,
             std::size_t bytes_transferred,
-            string* buf,
+            shared_ptr<string> buf,
             boost::function< void (bool, const string&) > resultCb) {
-        delete buf;
 
         if (ec) {
             GOOGLE_LOG(ERROR) << "fail to send message to server";

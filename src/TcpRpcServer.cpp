@@ -6,19 +6,19 @@
 using std::ostringstream;
 
 namespace pbrpcpp {
-    TcpRpcServer::ClientData::ClientData( int clientId, tcp::socket* clientSock )
+    TcpRpcServer::ClientData::ClientData( int clientId, boost::asio::io_service& io_service )
     : clientId_(clientId),
-    clientSock_(clientSock) {
+    clientSock_(io_service)
+    {
 
     }
 
     TcpRpcServer::ClientData::~ClientData() {
         boost::system::error_code ec;
         GOOGLE_LOG( INFO ) << "TcpRpcServer::ClientData::~ClientData";
-        clientSock_->cancel( ec );
-        clientSock_->shutdown( tcp::socket::shutdown_both, ec );
-        clientSock_->close( ec );
-        delete clientSock_;
+        clientSock_.cancel( ec );
+        clientSock_.shutdown( tcp::socket::shutdown_both, ec );
+        clientSock_.close( ec );
     }
 
     bool TcpRpcServer::ClientData::extractMessage(string& msg) {
@@ -27,7 +27,7 @@ namespace pbrpcpp {
         } catch (...) {
             boost::system::error_code ec;
 
-            clientSock_->close(ec);
+            clientSock_.close(ec);
         }
         return false;
     }
@@ -120,11 +120,11 @@ namespace pbrpcpp {
         shared_ptr< ClientData > clientData = clientDataMgr_->get( clientId );
         if( clientData ) {
             
-            string* s = new string( RpcMessage::serializeNetPacket( msg ));
+            shared_ptr<string> s( new string( RpcMessage::serializeNetPacket( msg )) );
 
             GOOGLE_LOG( INFO ) << "send response to client with " << s->length() << " bytes";
             
-            boost::asio::async_write( *(clientData->clientSock_),
+            boost::asio::async_write( clientData->clientSock_,
                     boost::asio::buffer( s->data(), s->length() ),
                     boost::asio::transfer_all(),
                     boost::bind( &TcpRpcServer::messageSent, this, _1, _2, s ) );
@@ -134,20 +134,17 @@ namespace pbrpcpp {
     }
     
     void TcpRpcServer::startAccept() {
-        tcp::socket* clientSock = new tcp::socket( io_service_ );
-        
-        acceptor_->async_accept( *clientSock, boost::bind( &TcpRpcServer::connAccepted, this, clientSock, _1 ));
+        shared_ptr<ClientData> clientData( new ClientData( nextClientId_++, io_service_ ) );
+        acceptor_->async_accept( clientData->clientSock_, boost::bind( &TcpRpcServer::connAccepted, this, clientData, _1 ));
     }
     
-    void TcpRpcServer::connAccepted( tcp::socket* clientSock, const boost::system::error_code& ec ) {
+    void TcpRpcServer::connAccepted( shared_ptr<ClientData> clientData, const boost::system::error_code& ec ) {
         if( ec || stop_ ) {
             GOOGLE_LOG( ERROR ) << "fail to accept connection from client";
-            delete clientSock;
         } else {
             GOOGLE_LOG( INFO ) << "a client connection is accepted";
             boost::system::error_code error;
-            clientSock->set_option(tcp::socket::reuse_address(true), error );
-            shared_ptr< ClientData > clientData( new ClientData( nextClientId_++, clientSock ) );
+            clientData->clientSock_.set_option(tcp::socket::reuse_address(true), error );
             clientDataMgr_->insert( clientData->clientId_, clientData );
             startRead( clientData );
             startAccept();
@@ -156,7 +153,7 @@ namespace pbrpcpp {
     
     void TcpRpcServer::startRead( shared_ptr<ClientData> clientData ) {
         if( clientData ) {
-            boost::asio::async_read( *(clientData->clientSock_), 
+            boost::asio::async_read( clientData->clientSock_, 
                     boost::asio::buffer( clientData->msgBuffer_, sizeof( clientData->msgBuffer_ ) ),
                     boost::asio::transfer_at_least(1),
                     boost::bind( &TcpRpcServer::clientDataReceived, this, _1, _2, clientData ) );
@@ -189,8 +186,7 @@ namespace pbrpcpp {
     
     void TcpRpcServer::messageSent( const boost::system::error_code& ec, 
                         std::size_t bytes_transferred, 
-                        string* buf ) {
-        delete buf;
+                        shared_ptr<string> buf ) {
         if( ec ) {
             GOOGLE_LOG( ERROR ) << "fail to send message to client";
         } else {

@@ -15,8 +15,9 @@
 #include <ostream>
 #include <istream>
 #include <stdexcept>
+#include <boost/smart_ptr.hpp>
 
-
+using boost::shared_ptr;
 using std::string;
 using std::ostream;
 using std::istream;
@@ -38,9 +39,9 @@ namespace pbrpcpp {
 
         static void writeMessage( const Message& msg, ostream& out );
 
-        static void readMessage( istream& in, Message*& msg );
+        static void readMessage( istream& in, shared_ptr<Message>& msg );
 
-        static Message* readMessage( istream& in );
+        static shared_ptr<Message> readMessage( istream& in );
         /**
          * check if the <code>msg1</code> and <code>msg2</code> are exactly same content message
          * @param msg1 the first message

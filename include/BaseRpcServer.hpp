@@ -72,7 +72,8 @@ namespace pbrpcpp {
                     
         };
         struct Request {
-            Request( int _clientId, const string& _callId, RpcController* _controller, Message* _requestMsg, Message* _responseMsg )
+            Request(int _clientId, const string& _callId, shared_ptr<RpcController> _controller,
+                    shared_ptr<Message> _requestMsg, shared_ptr<Message> _responseMsg )
             :clientId( _clientId ),
             callId( _callId ),
             controller( _controller ),
@@ -85,12 +86,12 @@ namespace pbrpcpp {
           
             int clientId;
             string callId;
-            scoped_ptr<RpcController> controller;
-            scoped_ptr<Message> requestMsg;
-            scoped_ptr<Message> responseMsg;
+            shared_ptr<RpcController> controller;
+            shared_ptr<Message> requestMsg;
+            shared_ptr<Message> responseMsg;
         };
     private:
-        void takeAndProcessMsg( Queue< ClientMsg* >& msgQueue );
+        void takeAndProcessMsg( Queue< shared_ptr<ClientMsg> >& msgQueue );
         void processMessage( int clientId, const string& msg );
         /**
          * get the registered service by method. The service is registered by Export() method
@@ -98,20 +99,20 @@ namespace pbrpcpp {
          * @return the Service if it is exported by Export() call, NULL if the service is not exported
          */
         Service* getService( const MethodDescriptor* method );
-        void requestReceived( int clientId, const string& callId, const MethodDescriptor* method, Message* requestMsg );
+        void requestReceived( int clientId, const string& callId, const MethodDescriptor* method, shared_ptr<Message> requestMsg );
         void cancelRequest( int clientId, const string& callId );
         void sendResponse( int clientId, const string& callId, RpcController* controller, Message* responseMsg );
-        void addRequest( Request* request );
-        Request* removeRequest( int clientId, const string& callId );
-        void requestFinished( Request* request );
+        void addRequest( shared_ptr<Request> request );
+        shared_ptr<Request> removeRequest( int clientId, const string& callId );
+        void requestFinished( shared_ptr<Request> request );
     protected:
       int getProcessingRequests() const;
     private:
         map< const ServiceDescriptor*, Service* > services_;
         scoped_ptr< AtomicInteger<int> > processingRequests_;
-        scoped_ptr< ThreadSafeMap< ClientCallId, Request*> > requests_;
-        scoped_ptr< Queue< ClientMsg* > > clientRequestMsgs_;
-        scoped_ptr< Queue< ClientMsg* > > clientCancelMsgs_;
+        scoped_ptr< ThreadSafeMap< ClientCallId, shared_ptr<Request> > > requests_;
+        scoped_ptr< Queue< shared_ptr<ClientMsg> > > clientRequestMsgs_;
+        scoped_ptr< Queue< shared_ptr<ClientMsg> > > clientCancelMsgs_;
         boost::thread_group requestProcThreads_;
     };
 

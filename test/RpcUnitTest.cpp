@@ -57,7 +57,7 @@ TEST( RPCMessageTest, RequestSerialization ) {
     
     string newCallId;
     const MethodDescriptor* newMethodDescriptor = 0;
-    Message* newRequest;
+    shared_ptr<Message> newRequest;
     
     pbrpcpp::RpcMessage::parseRequestFrom( in, newCallId, newMethodDescriptor, newRequest );
     
@@ -65,7 +65,6 @@ TEST( RPCMessageTest, RequestSerialization ) {
     EXPECT_EQ( methodDescriptor, newMethodDescriptor );
     EXPECT_TRUE( newRequest != 0 );
     EXPECT_TRUE( pbrpcpp::Util::equals( request, *newRequest ) );
-  delete newRequest;
 }
 
 TEST( RPCMessageTest, ResponseSerialization ) {
@@ -83,7 +82,7 @@ TEST( RPCMessageTest, ResponseSerialization ) {
        
     istringstream in( out.str() );
     string newCallId;
-    Message* newResponse = 0;
+    shared_ptr<Message> newResponse;
     pbrpcpp::RpcController newController;
     
     
@@ -107,8 +106,7 @@ TEST( RPCMessageTest, ResponseSerialization ) {
     istringstream in_2( out_2.str() );
     newCallId.clear();
     newController.Reset();
-    delete newResponse;
-    newResponse = 0;
+    newResponse.reset();
     
     EXPECT_FALSE( newCallId == callId );
     EXPECT_EQ( pbrpcpp::Util::readInt( in_2 ), (int)pbrpcpp::RpcMessage::RESPONSE_MSG );
@@ -124,7 +122,6 @@ TEST( RPCMessageTest, ResponseSerialization ) {
     controller.Reset();
     EXPECT_FALSE( controller.IsCanceled());
     EXPECT_FALSE( controller.Failed() );    
-  delete newResponse;
 }
 
 TEST( RPCMessageTest, CancelSerialization ) {

@@ -12,6 +12,9 @@
 #include <ostream>
 #include <istream>
 #include <string>
+#include <boost/shared_ptr.hpp>
+
+using boost::shared_ptr;
 
 using std::string;
 using std::ostream;
@@ -80,7 +83,7 @@ namespace pbrpcpp {
          * @param method OUT user supplied buffer to accept the parsed method
          * @param request OUT user supplied buffer to accept the parsed request message
          */
-        static void parseRequestFrom( istream& in, string& callId, const MethodDescriptor*& method, Message*& request );
+        static void parseRequestFrom( istream& in, string& callId, const MethodDescriptor*& method, shared_ptr<Message>& request );
 
         /**
          * parse a response from a input stream <code>in</code>
@@ -89,7 +92,7 @@ namespace pbrpcpp {
          * @param controller OUT the user supplied buffer to accept the parsed controller
          * @param response OUT the user supplied buffer to accept the parsed response, this response maybe NULL if error information is in controller
          */
-        static void parseResponseFrom( istream& in, string& callId, RpcController& controller, Message*& response );
+        static void parseResponseFrom( istream& in, string& callId, RpcController& controller, shared_ptr<Message>& response );
 
         /**
          * parse the cancel request from the input stream <code>in</code>

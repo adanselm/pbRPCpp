@@ -57,7 +57,7 @@ namespace pbrpcpp {
             return;
         }
                 
-        string* s = new string( RpcMessage::serializeNetPacket( msg ) );
+        shared_ptr<string> s( new string( RpcMessage::serializeNetPacket( msg ) ) );
 
         GOOGLE_LOG( INFO ) << "start to send message to server with " << s->length() << " bytes";
         
@@ -105,9 +105,8 @@ namespace pbrpcpp {
 
     void UdpRpcChannel::handlePacketWrite(const boost::system::error_code& ec,
             std::size_t bytes_transferred,
-            string* buf,
+            shared_ptr<string> buf,
             boost::function< void (bool, const string&) > resultCb) {
-        delete buf;
 
         if (ec) {
             GOOGLE_LOG(ERROR) << "fail to send packet to server";

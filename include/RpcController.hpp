@@ -14,7 +14,7 @@
 #include <istream>
 #include <ostream>
 #include <boost/thread.hpp>
-#include "RpcController.hpp"
+#include <boost/functional.hpp>
 
 using std::set;
 using std::string;
@@ -48,8 +48,8 @@ namespace pbrpcpp {
 
         virtual void NotifyOnCancel(Closure* callback);
     private:
-        void cancel();
-        void setStartCancelCallback( Closure* callback );
+        void complete();
+        void setStartCancelCallback( const boost::function<void()>& cancelFunc );
         void serializeTo( ostream& out ) const;
 
         void parseFrom( istream& in );
@@ -61,7 +61,7 @@ namespace pbrpcpp {
         // set by NotifyOnCancel() method
         set<Closure*> cancelCallbacks_;
         // Will be invoked if StartCancel is called
-        Closure* startCancelCallback_;
+        boost::function<void()> cancelFunc_;
         // the failed reason set by SetFailed() method
         string failedReason_;
 

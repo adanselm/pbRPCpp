@@ -191,7 +191,7 @@ namespace pbrpcpp {
 
         udp::endpoint ep;
         if (clientIdAllocator_.getClientEndpoint(clientId, ep)) {
-            string *s = new string(RpcMessage::serializeNetPacket(msg));
+            shared_ptr<string> s( new string(RpcMessage::serializeNetPacket(msg)) );
 
             GOOGLE_LOG(INFO) << "start to send " << s->length() << " bytes to server";
 
@@ -249,8 +249,7 @@ namespace pbrpcpp {
 
     void UdpRpcServer::messageSent(const boost::system::error_code& ec,
             std::size_t bytes_transferred,
-            string* buf) {
-        delete buf;
+            shared_ptr<string> buf) {
         if (ec) {
             GOOGLE_LOG(ERROR) << "fail to send message to client";
         } else {

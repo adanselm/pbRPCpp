@@ -13,6 +13,7 @@
 #include "ThreadSafeMap.hpp"
 #include "Util.hpp"
 #include <sstream>
+#include <boost/bind.hpp>
 
 using std::istringstream;
 
@@ -22,7 +23,7 @@ namespace pbrpcpp {
     :timeoutMillis_( 0 ),
     timer_( new Timer<string>() ),
     responses_( new Queue<string>() ),
-    waitingResponses_( new ThreadSafeMap< string, ResponseParam* >() )
+    waitingResponses_( new ThreadSafeMap< string, shared_ptr<ResponseParam> >() )
     {        
         //create a thread to process all the responses
         responseProcThreads_.create_thread( boost::bind( &BaseRpcChannel::takeAndProcessResponse, this ));
@@ -44,12 +45,12 @@ namespace pbrpcpp {
         if( controller ) {
             RpcController* pRpcController = dynamic_cast<RpcController*>( controller );
             if( pRpcController ) {
-                pRpcController->setStartCancelCallback( NewCallback(this, &BaseRpcChannel::startCancel, callId ) );
+                pRpcController->setStartCancelCallback( boost::bind(&BaseRpcChannel::startCancel, this, callId ) );
             }
         }
 
-        bool* completed = ( done == 0 )?( new bool( false ) ): 0;        
-        ResponseParam* respParam = new ResponseParam( controller, response, done, completed );
+        bool completed = false;
+        shared_ptr<ResponseParam> respParam( new ResponseParam( controller, response, done, (done == 0)?(&completed):0 ) );
 
         (*waitingResponses_)[ callId ] = respParam ;
 
@@ -68,17 +69,14 @@ namespace pbrpcpp {
 
         // if sync call, waiting for complete
         if( done == 0 ) {
-
-            while( !(*completed) );
-
-            delete completed;          
+            while( !completed );
         }
     }
 
     void BaseRpcChannel::messageSent( bool success, const string& reason, string callId ) {
         //if fail to send message to the server
         if( ! success ) {
-            ResponseParam* respParam = waitingResponses_->erase( callId );
+            shared_ptr<ResponseParam> respParam = waitingResponses_->erase( callId );
             if( respParam ) {
                 timer_->cancel( callId );
                 RpcController* pController = dynamic_cast<RpcController*>( respParam->controller );
@@ -94,8 +92,9 @@ namespace pbrpcpp {
                     respParam->done->Run();
                 }
 
-                delete respParam;
-                
+                if( pController ) {
+                  pController->complete();
+                }
             }
         }
     }
@@ -142,12 +141,12 @@ namespace pbrpcpp {
                         {                            
                             string callId;
                             RpcController controller;
-                            Message* response = 0;
+                            shared_ptr<Message> response;
                             //parse the response
                             RpcMessage::parseResponseFrom( in, callId, controller, response );
                             GOOGLE_LOG( INFO ) << "received a response message, callId:" << callId;
                             //if the response is still not timeout
-                            ResponseParam* respParam = waitingResponses_->erase( callId );
+                            shared_ptr<ResponseParam> respParam = waitingResponses_->erase( callId );
                             if( respParam ) {                            
                                 timer_->cancel( callId );
                                 RpcController* pController = dynamic_cast<RpcController*>( respParam->controller );
@@ -166,9 +165,11 @@ namespace pbrpcpp {
                                     respParam->done->Run();
                                 }
 
-                                delete respParam;
+                                if( pController ) {
+                                  pController->complete();
+                                }
+
                             }
-                            delete response;
                         }
                         break;
                     }
@@ -186,9 +187,7 @@ namespace pbrpcpp {
             if( src.failed_ ) {
                 dest.SetFailed ( src.ErrorText() );
             }
-            if( src.canceled_ ) {
-                dest.cancel();
-            }
+            dest.canceled_ = src.canceled_;
     }
 
     void BaseRpcChannel::copyMessage( Message& dest, const Message& src ) {
@@ -204,7 +203,7 @@ namespace pbrpcpp {
     }
     
     void BaseRpcChannel::handleRequestTimeout( string callId ) {
-        ResponseParam* respParam = waitingResponses_->erase( callId );
+        shared_ptr<ResponseParam> respParam = waitingResponses_->erase( callId );
         if( respParam ) {
             RpcController* pController = dynamic_cast<RpcController*> (respParam->controller);
             if (pController) {
@@ -219,8 +218,9 @@ namespace pbrpcpp {
                 respParam->done->Run();
             }
 
-            delete respParam;
-
+            if( pController ) {
+              pController->complete();
+            }
         }
     }
 

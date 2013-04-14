@@ -25,3 +25,6 @@ project "Tests"
   configuration {"not windows"}
     links { "pthread" }
 
+  configuration {"linux"}
+    links { "rt" }
+

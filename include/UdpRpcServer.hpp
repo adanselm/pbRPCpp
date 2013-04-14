@@ -76,7 +76,7 @@ namespace pbrpcpp {
                         shared_ptr< udp::endpoint > ep  );
         void messageSent( const boost::system::error_code& ec, 
                         std::size_t bytes_transferred, 
-                        string* buf );
+                        shared_ptr<string> buf );
     private:
         string listenAddr_;
         string listenPort_;

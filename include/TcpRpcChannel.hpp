@@ -41,7 +41,7 @@ namespace pbrpcpp {
                         std::size_t bytes_transferred );
         void handleDataWrite( const boost::system::error_code& ec,
                        std::size_t bytes_transferred,
-                       string* buf,
+                       shared_ptr<string> buf,
                        boost::function< void (bool, const string&) > resultCb );
         bool extractMessage( string& msg );
     

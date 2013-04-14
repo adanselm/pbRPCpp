@@ -32,25 +32,20 @@ namespace pbrpcpp {
         virtual void sendResponse( int clientId, const string& msg );
     private:
         struct ClientData {
-            ClientData( int clientId, tcp::socket* clientSock );
+            ClientData( int clientId, boost::asio::io_service& io_service );
             ~ClientData() ;            
             bool extractMessage( string& msg ) ;
             
             int clientId_;
-            tcp::socket* clientSock_;
+            tcp::socket clientSock_;
             char msgBuffer_[RpcMessage::TCP_MSG_BUFFER_SIZE];
             string receivedMsg_;
-            
-            enum {
-                MSG_BUFFER_SIZE = 4096
-            };
-            
         };
         
         
     private:
         void startAccept();
-        void connAccepted( tcp::socket* clientSock, const boost::system::error_code& ec );
+        void connAccepted( shared_ptr<ClientData> clientData, const boost::system::error_code& ec );
         void startRead( shared_ptr<ClientData> clientData );
         void clientDataReceived( const boost::system::error_code& ec, 
                         std::size_t bytes_transferred, 
@@ -58,7 +53,7 @@ namespace pbrpcpp {
         string extractRpcMessaeg( boost::asio::streambuf& buf );
         void messageSent( const boost::system::error_code& ec, 
                         std::size_t bytes_transferred, 
-                        string* buf );
+                        shared_ptr<string> buf );
     private:
         //the server listening address
         string listenAddr_;
