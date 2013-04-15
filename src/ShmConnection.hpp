@@ -23,9 +23,10 @@ namespace pbrpcpp {
     ShmConnection();
     ~ShmConnection();
     
-    void startConnect(const std::string& segmentName);
-    void startCreate(const std::string& segmentName,
-                     boost::function< void (const std::string&) > receiveCb);
+    bool startConnect(const std::string& segmentName,
+                      boost::function< void (const std::string&) > receiveCb = 0);
+    bool startCreate(const std::string& segmentName,
+                     boost::function< void (const std::string&) > receiveCb = 0);
     void disconnect();
     bool isConnected() const;
     

@@ -26,6 +26,7 @@ namespace boost {
 /**********/
 #include "boost/interprocess/ipc/message_queue.hpp"
 #include "boost/scoped_ptr.hpp"
+#include "boost/scoped_array.hpp"
 #include <sstream>
 
 #ifndef SHM_MAX_MSG_SIZE
@@ -100,6 +101,10 @@ namespace pbrpcpp {
 //      GOOGLE_LOG(ERROR) << "failed to connect to shared mem segment. " << ex.what();
       return false;
     }
+    catch (...)
+    {
+      return false;
+    }
   }
   
   bool ShmConnection::createSegment(const std::string& segmentName)
@@ -129,47 +134,42 @@ namespace pbrpcpp {
     }
   }
   
-  void ShmConnection::startConnect(const std::string& segmentName)
+  bool ShmConnection::startConnect(const std::string& segmentName,
+                                   boost::function< void (const std::string&) > receiveCb)
   {
     //if already stopped
     if (stop_) {
-      return;
+      return false;
     }
     
     bool ret = connectToSegment(segmentName);
     
-    if(ret)
-    {
-//      receivedMsg_.clear();
-//      receiveCb_ = receiveCb;
-//      startRead();
-    }
-    else
-    {
-//      GOOGLE_LOG(ERROR) << "fail a resolve server address " << segmentName_;
-    }
-  }
-  
-  void ShmConnection::startCreate(const std::string& segmentName,
-                                  boost::function< void (const std::string&) > receiveCb)
-  {
-    //if already stopped
-    if (stop_) {
-      return;
-    }
-    
-    bool ret = createSegment(segmentName);
-    
-    if(ret)
+    if( ret && !receiveCb.empty() )
     {
       receivedMsg_.clear();
       receiveCb_ = receiveCb;
       startRead();
     }
-    else
-    {
-      //      GOOGLE_LOG(ERROR) << "fail a resolve server address " << segmentName_;
+    return ret;
+  }
+  
+  bool ShmConnection::startCreate(const std::string& segmentName,
+                                  boost::function< void (const std::string&) > receiveCb)
+  {
+    //if already stopped
+    if (stop_) {
+      return false;
     }
+    
+    bool ret = createSegment(segmentName);
+    
+    if( ret && !receiveCb.empty() )
+    {
+      receivedMsg_.clear();
+      receiveCb_ = receiveCb;
+      startRead();
+    }
+    return ret;
   }
   
   void ShmConnection::startRead()
@@ -227,7 +227,7 @@ namespace pbrpcpp {
          && bytesInMessage < mMaxMsgSize
          && bytesInMessage == (boost::uint32_t)(aRecvdSize - sizeof(boost::uint32_t)) )
       {
-        const std::string message = receivedMsg_.substr(sizeof(bytesInMessage)).c_str();
+        const std::string message(&receivedMsg_[sizeof(bytesInMessage)], bytesInMessage);
         receiveCb_(message);
         return true;
       }
@@ -250,14 +250,17 @@ namespace pbrpcpp {
       return false;
     }
     
-    std::string tempData((char *)&messageHeader, sizeof(messageHeader));
-    tempData.append(msg);    
+    const size_t totalSize = msg.size() + sizeof(messageHeader);
+    boost::scoped_array<char> tempData( new char[totalSize] );
+    boost::uint32_t* head = (boost::uint32_t*)tempData.get();
+    *head = messageHeader;
+    msg.copy(&tempData[sizeof(messageHeader)], msg.size());
     
     if(queue_ != 0)
     {
       try
       {
-        queue_->send(&tempData[0], tempData.size(), 0);
+        queue_->send(&tempData[0], totalSize, 0);
         return true;
       }
       catch(boost::interprocess::interprocess_exception &ex)

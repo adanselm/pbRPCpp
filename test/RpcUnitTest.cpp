@@ -17,8 +17,11 @@
 #include "Util.hpp"
 #include "RpcMessage.hpp"
 #include "ShmConnection.hpp"
+#include "ShmRpcServer.hpp"
+#include "ShmRpcChannel.hpp"
 #include <gtest/gtest.h>
 #include <boost/scoped_ptr.hpp>
+#include <boost/thread.hpp>
 
 
 using google::protobuf::NewCallback;
@@ -482,10 +485,34 @@ TEST( ShmRpcTest, ShmConnection )
   EXPECT_EQ( 0, serverReceiver.msg_.compare(expected) );
 }
 
+TEST( ShmRpcTest, SyncSuccess ) {
+  const string segment = "ShmRpcTest_SyncSuccess";
+  shared_ptr<pbrpcpp::ShmRpcServer> rpcServer( new pbrpcpp::ShmRpcServer( segment ) );
+  shared_ptr< EchoTestServer<pbrpcpp::ShmRpcServer> > testServer( new EchoTestServer<pbrpcpp::ShmRpcServer>( rpcServer, 1 ) );
+  
+  testServer->start();
+  boost::this_thread::sleep(boost::posix_time::milliseconds(200));
+  
+  pbrpcpp::RpcController controller;
+  GOOGLE_LOG( INFO ) << "start to connect to server " << segment;
+  
+  shared_ptr<pbrpcpp::ShmRpcChannel> channel( new pbrpcpp::ShmRpcChannel( segment ) );
+  EchoTestClient client( channel );
+  echo::EchoRequest request;
+  echo::EchoResponse response;
+  
+  request.set_message("hello, world");
+  client.echo( &controller, &request,&response, NULL, 5000 );
+  
+  EXPECT_FALSE( controller.Failed() );
+  EXPECT_EQ( response.response(), "hello, world");
+  testServer->stop();
+}
 
 void emptyLogHandler(google::protobuf::LogLevel level, const char* filename, int line,
-                        const std::string& message) {
-    
+                        const std::string& message)
+{
+  std::cout << message << std::endl;
 }
 
 
