@@ -5,7 +5,7 @@
  * Created on April 13, 2013, 8:06 PM
  */
 
-#include "ShmConnection.h"
+#include "ShmConnection.hpp"
 /**
  * Temporary workaround needed to compile in 32bit.
  * See: https://svn.boost.org/trac/boost/ticket/6147
@@ -81,6 +81,7 @@ namespace pbrpcpp {
   bool ShmConnection::connectToSegment(const std::string& segmentName)
   {
     disconnect();
+    stop_ = false;
     
     using namespace boost::interprocess;
     try
@@ -105,6 +106,7 @@ namespace pbrpcpp {
   {
 //    LOG_DBG << "createSegment";
     disconnect();
+    stop_ = false;
     
     using namespace boost::interprocess;
     try
@@ -127,8 +129,7 @@ namespace pbrpcpp {
     }
   }
   
-  void ShmConnection::startConnect(const std::string& segmentName,
-                                   boost::function< void (const std::string&) > receiveCb)
+  void ShmConnection::startConnect(const std::string& segmentName)
   {
     //if already stopped
     if (stop_) {
@@ -139,9 +140,9 @@ namespace pbrpcpp {
     
     if(ret)
     {
-      receivedMsg_.clear();
-      receiveCb_ = receiveCb;
-      startRead();
+//      receivedMsg_.clear();
+//      receiveCb_ = receiveCb;
+//      startRead();
     }
     else
     {
@@ -226,7 +227,7 @@ namespace pbrpcpp {
          && bytesInMessage < mMaxMsgSize
          && bytesInMessage == (boost::uint32_t)(aRecvdSize - sizeof(boost::uint32_t)) )
       {
-        const std::string message = receivedMsg_.substr(sizeof(bytesInMessage));
+        const std::string message = receivedMsg_.substr(sizeof(bytesInMessage)).c_str();
         receiveCb_(message);
         return true;
       }

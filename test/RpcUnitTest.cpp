@@ -16,6 +16,7 @@
 #include "MethodCallIDGenerator.hpp"
 #include "Util.hpp"
 #include "RpcMessage.hpp"
+#include "ShmConnection.hpp"
 #include <gtest/gtest.h>
 #include <boost/scoped_ptr.hpp>
 
@@ -446,7 +447,40 @@ TEST( UdpRpcTest, AsyncTimeout ) {
     EXPECT_TRUE( controller.Failed() );
     testServer->stop();
 }
-        
+
+struct MessageReceiver
+{
+  void operator()(const string& msg)
+  {
+    msg_ = msg;
+    cond_.notify_all();
+  }
+  string msg_;
+  boost::mutex respMutex_;
+  boost::condition_variable cond_;
+};
+
+TEST( ShmRpcTest, ShmConnection )
+{
+  MessageReceiver serverReceiver;
+  
+  pbrpcpp::ShmConnection client;
+  pbrpcpp::ShmConnection server;
+  
+  server.startCreate("ShmRpcTest_ShmConnection", boost::ref(serverReceiver));
+  client.startConnect("ShmRpcTest_ShmConnection");
+  
+  EXPECT_TRUE(server.isConnected());
+  EXPECT_TRUE(client.isConnected());
+   
+  client.sendMessage("clientToServerMessage");
+  {
+    boost::unique_lock<boost::mutex> lock(serverReceiver.respMutex_);
+    serverReceiver.cond_.wait( lock );
+  }
+  string expected("clientToServerMessage");
+  EXPECT_EQ( 0, serverReceiver.msg_.compare(expected) );
+}
 
 
 void emptyLogHandler(google::protobuf::LogLevel level, const char* filename, int line,
