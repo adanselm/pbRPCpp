@@ -30,6 +30,8 @@ namespace pbrpcpp {
                 GOOGLE_LOG( ERROR ) << "fail to open the UDP socket";
             } else {
                 socket_.set_option(udp::socket::reuse_address(true), error);
+                socket_.set_option(udp::socket::send_buffer_size( RpcMessage::MAX_UDP_SIZE ), error);
+                socket_.set_option(udp::socket::receive_buffer_size( RpcMessage::MAX_UDP_SIZE ), error);
                 startRead();
             }
         }

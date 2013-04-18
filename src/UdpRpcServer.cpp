@@ -123,6 +123,8 @@ namespace pbrpcpp {
 
         socket_.open(ep.protocol(), error);
         socket_.set_option(udp::socket::reuse_address(true), error);
+        socket_.set_option(udp::socket::send_buffer_size( RpcMessage::MAX_UDP_SIZE ), error);
+        socket_.set_option(udp::socket::receive_buffer_size( RpcMessage::MAX_UDP_SIZE ), error);
         if (error) {
             GOOGLE_LOG(ERROR) << "fail to open a UDP socket";
             return;
