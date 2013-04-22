@@ -1,10 +1,9 @@
-/* 
- * File:   ShmRpcServer.hpp
- * Author: Adrien
- *
- * Created on April 15, 2013, 12:59 PM
+/**
+ *          Copyright Springbeats Sarl 2013.
+ * Distributed under the Boost Software License, Version 1.0.
+ *    (See accompanying file ../LICENSE_1_0.txt or copy at
+ *          http://www.boost.org/LICENSE_1_0.txt)
  */
-
 #ifndef SHMRPCSERVER_HPP
 #define	SHMRPCSERVER_HPP
 

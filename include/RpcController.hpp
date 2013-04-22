@@ -1,10 +1,9 @@
-/* 
- * File:   RpcController.hpp
- * Author: Steven
- *
- * Created on March 31, 2013, 6:10 PM
+/**
+ *          Copyright Springbeats Sarl 2013.
+ * Distributed under the Boost Software License, Version 1.0.
+ *    (See accompanying file ../LICENSE_1_0.txt or copy at
+ *          http://www.boost.org/LICENSE_1_0.txt)
  */
-
 #ifndef RPCCONTROLLER_HPP
 #define	RPCCONTROLLER_HPP
 

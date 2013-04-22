@@ -1,10 +1,9 @@
-/* 
- * File:   EchoTest.cpp
- * Author: Steven
- *
- * Created on Apr 7, 2013, 9:58 AM
+/**
+ *          Copyright Springbeats Sarl 2013.
+ * Distributed under the Boost Software License, Version 1.0.
+ *    (See accompanying file ../LICENSE_1_0.txt or copy at
+ *          http://www.boost.org/LICENSE_1_0.txt)
  */
-
 #include "TcpRpcChannel.hpp"
 #include "RpcController.hpp"
 #include "TcpRpcServer.hpp"

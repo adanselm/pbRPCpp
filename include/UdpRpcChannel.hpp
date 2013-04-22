@@ -1,10 +1,9 @@
-/* 
- * File:   UdpRpcChannel.hpp
- * Author: Steven
- *
- * Created on April 2, 2013, 1:00 PM
+/**
+ *          Copyright Springbeats Sarl 2013.
+ * Distributed under the Boost Software License, Version 1.0.
+ *    (See accompanying file ../LICENSE_1_0.txt or copy at
+ *          http://www.boost.org/LICENSE_1_0.txt)
  */
-
 #ifndef UDPRPCCHANNEL_HPP
 #define	UDPRPCCHANNEL_HPP
 

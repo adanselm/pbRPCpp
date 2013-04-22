@@ -1,10 +1,9 @@
-/*
- * File:   ShmConnection.cpp
- * Author: Adrien
- *
- * Created on April 13, 2013, 8:06 PM
+/**
+ *          Copyright Springbeats Sarl 2013.
+ * Distributed under the Boost Software License, Version 1.0.
+ *    (See accompanying file ../LICENSE_1_0.txt or copy at
+ *          http://www.boost.org/LICENSE_1_0.txt)
  */
-
 #include "ShmConnection.hpp"
 /**
  * Temporary workaround needed to compile in 32bit.

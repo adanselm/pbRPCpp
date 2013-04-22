@@ -1,10 +1,9 @@
-/* 
- * File:   ThreadSafeMap.hpp
- * Author: Steven
- *
- * Created on April 4, 2013, 6:03 PM
+/**
+ *          Copyright Springbeats Sarl 2013.
+ * Distributed under the Boost Software License, Version 1.0.
+ *    (See accompanying file ../LICENSE_1_0.txt or copy at
+ *          http://www.boost.org/LICENSE_1_0.txt)
  */
-
 #ifndef THREADSAFEMAP_HPP
 #define	THREADSAFEMAP_HPP
 

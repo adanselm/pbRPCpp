@@ -1,10 +1,9 @@
-/* 
- * File:   IoServiceInitializer.hpp
- * Author: Steven
- *
- * Created on April 2, 2013, 9:14 AM
+/**
+ *          Copyright Springbeats Sarl 2013.
+ * Distributed under the Boost Software License, Version 1.0.
+ *    (See accompanying file ../LICENSE_1_0.txt or copy at
+ *          http://www.boost.org/LICENSE_1_0.txt)
  */
-
 #ifndef IOSERVICEINITIALIZER_HPP
 #define	IOSERVICEINITIALIZER_HPP
 

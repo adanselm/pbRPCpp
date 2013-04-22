@@ -1,10 +1,9 @@
-/* 
- * File:   EchoTestClient.hpp
- * Author: stou
- *
- * Created on April 6, 2013, 5:26 PM
+/**
+ *          Copyright Springbeats Sarl 2013.
+ * Distributed under the Boost Software License, Version 1.0.
+ *    (See accompanying file ../LICENSE_1_0.txt or copy at
+ *          http://www.boost.org/LICENSE_1_0.txt)
  */
-
 #ifndef ECHOTESTCLIENT_HPP
 #define	ECHOTESTCLIENT_HPP
 

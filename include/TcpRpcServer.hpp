@@ -1,10 +1,9 @@
-/* 
- * File:   TcpRpcServer.hpp
- * Author: stou
- *
- * Created on March 31, 2013, 8:07 PM
+/**
+ *          Copyright Springbeats Sarl 2013.
+ * Distributed under the Boost Software License, Version 1.0.
+ *    (See accompanying file ../LICENSE_1_0.txt or copy at
+ *          http://www.boost.org/LICENSE_1_0.txt)
  */
-
 #ifndef TCPRPCSERVER_HPP
 #define	TCPRPCSERVER_HPP
 
