@@ -9,6 +9,7 @@
 
 #include "echo.pb.h"
 #include "BaseRpcServer.hpp"
+#include "RpcServiceWrapper.hpp"
 #include "Queue.hpp"
 #include <string>
 
@@ -29,38 +30,13 @@ private:
     string failReason_;
 };
 
-template< typename RpcServer >
-class EchoTestServer {
-public:
-
-    EchoTestServer(shared_ptr<RpcServer> rpcServer,
-            int echoDelay,
-            bool exportEchoService = true,
-            const string& failReason = string())
-    : rpcServer_(rpcServer),
-    echoService_(echoDelay, failReason) {
-        if (exportEchoService) {
-            rpcServer_->Export(&echoService_);
-        }
-    }
-
-    void start() {
-        serverThread_ = boost::thread(boost::bind(&EchoTestServer::run, this));
-    }
-
-    void stop() {
-        rpcServer_->Shutdown();
-        serverThread_.join();
-    }
-private:
-
-    void run() {
-        rpcServer_->Run();
-    }
-private:
-    shared_ptr<RpcServer> rpcServer_;
-    EchoServiceImpl echoService_;
-    boost::thread serverThread_;
+template <class SrvT>
+struct EchoServiceAdapter
+{
+  typedef pbrpcpp::RpcServiceWrapper<EchoServiceImpl, SrvT> type;
 };
+
+
+
 #endif	/* ECHOTESTSERVER_HPP */
 

@@ -13,7 +13,8 @@
 
 class EchoTestClient {
 public:
-    EchoTestClient( shared_ptr<pbrpcpp::BaseRpcChannel> channel );
+    EchoTestClient( const shared_ptr<pbrpcpp::BaseRpcChannel>& channel );
+  
     void echo( google::protobuf::RpcController* controller,
                               const echo::EchoRequest* request,
                               echo::EchoResponse* response,

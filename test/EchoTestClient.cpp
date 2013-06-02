@@ -6,7 +6,7 @@
  */
 #include "EchoTestClient.hpp"
 
-EchoTestClient::EchoTestClient(shared_ptr<pbrpcpp::BaseRpcChannel> channel)
+EchoTestClient::EchoTestClient(const shared_ptr<pbrpcpp::BaseRpcChannel>& channel)
 : channel_(channel) {
 }
 
