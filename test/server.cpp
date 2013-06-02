@@ -8,7 +8,8 @@
 //#include "RpcController.hpp"
 //#include "TcpRpcServer.hpp"
 //#include "UdpRpcChannel.hpp"
-#include "UdpRpcServer.hpp"
+//#include "UdpRpcServer.hpp"
+#include "ShmRpcServer.hpp"
 #include "EchoTestServer.hpp"
 //#include "EchoTestClient.hpp"
 #include <boost/shared_ptr.hpp>
@@ -26,10 +27,10 @@ int main(int argc, char** argv)
   }
   
   std::cout << "server port : " << argv[1] << std::endl;
-  shared_ptr<pbrpcpp::UdpRpcServer> rpcServer( new pbrpcpp::UdpRpcServer( "localhost", argv[1] ) );
-  shared_ptr< EchoTestServer<pbrpcpp::UdpRpcServer> > testServer( new EchoTestServer<pbrpcpp::UdpRpcServer>( rpcServer, 0 ) );
+  shared_ptr<pbrpcpp::ShmRpcServer> rpcServer( new pbrpcpp::ShmRpcServer( "localhost" ) );
+  EchoServiceAdapter<pbrpcpp::ShmRpcServer>::type testServer( rpcServer, 0 );
   
-  testServer->start();
+  testServer.start();
   
 //  pbrpcpp::RpcController controller;
 //  
@@ -49,7 +50,7 @@ int main(int argc, char** argv)
   int temp;
   std::cin >> temp;
   
-  testServer->stop();
+  testServer.stop();
   
   return 0;
 }

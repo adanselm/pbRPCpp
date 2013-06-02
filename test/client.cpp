@@ -7,7 +7,8 @@
 //#include "TcpRpcChannel.hpp"
 #include "RpcController.hpp"
 //#include "TcpRpcServer.hpp"
-#include "UdpRpcChannel.hpp"
+//#include "UdpRpcChannel.hpp"
+#include "ShmRpcChannel.hpp"
 //#include "UdpRpcServer.hpp"
 //#include "EchoTestServer.hpp"
 #include "EchoTestClient.hpp"
@@ -35,7 +36,7 @@ int main(int argc, char** argv)
 //  const std::string message(argv[2]);
 //  std::cout << "targeting " << addr << ":" << port << " with msg: " << message << std::endl;
   
-  shared_ptr<pbrpcpp::UdpRpcChannel> channel( new pbrpcpp::UdpRpcChannel( addr, port ) );
+  shared_ptr<pbrpcpp::ShmRpcChannel> channel( new pbrpcpp::ShmRpcChannel( addr ) );
   EchoTestClient client( channel );
   echo::EchoRequest request;
   echo::EchoResponse response;
