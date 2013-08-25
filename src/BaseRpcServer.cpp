@@ -75,7 +75,7 @@ namespace pbrpcpp {
                     processMessage(clientMsg->clientId, clientMsg->msg);
                 }
             } catch ( const boost::thread_interrupted& ex ) {
-                GOOGLE_LOG( INFO ) << "thread interrupted";
+//                GOOGLE_LOG( INFO ) << "thread interrupted";
                 break;
             }catch(...) {
             }

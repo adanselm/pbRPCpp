@@ -64,12 +64,13 @@ namespace pbrpcpp {
     readThread_.join();
     if(queue_ != 0)
     {
-      std::size_t aSize = queue_->get_num_msg();
+//      std::size_t aSize = queue_->get_num_msg();
 //      GOOGLE_LOG(INFO) << "Disconnect called. Number of messages in queue: " << ((int)aSize);
       const scoped_lock<boost::mutex> sl(segmentMutex_);
       queue_.reset(0);
-      boost::interprocess::message_queue::remove(segmentName_.c_str());
     }
+    const scoped_lock<boost::mutex> sl(segmentMutex_);
+    boost::interprocess::message_queue::remove(segmentName_.c_str());
   }
   
   bool ShmConnection::isConnected() const
