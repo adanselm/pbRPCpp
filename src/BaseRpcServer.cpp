@@ -33,6 +33,7 @@ namespace pbrpcpp {
     }
 
     BaseRpcServer::~BaseRpcServer() {
+        stop_ = true;
         requestProcThreads_.interrupt_all();
         requestProcThreads_.join_all();        
     }
@@ -68,19 +69,25 @@ namespace pbrpcpp {
     }
 
     void BaseRpcServer::takeAndProcessMsg( Queue< shared_ptr<ClientMsg> >& msgQueue ) {
-        for( ; ; ) {
-            try {
-                shared_ptr<ClientMsg> clientMsg = msgQueue.take();
-                if (clientMsg) {
-                    processMessage(clientMsg->clientId, clientMsg->msg);
-                }
-            } catch ( const boost::thread_interrupted& ex ) {
-//                GOOGLE_LOG( INFO ) << "thread interrupted";
-                break;
-            }catch(...) {
-            }
+      while( stop_ == false )
+      {
+        try
+        {
+          shared_ptr<ClientMsg> clientMsg = msgQueue.take();
+          if (clientMsg)
+          {
+            processMessage(clientMsg->clientId, clientMsg->msg);
+          }
         }
-
+        catch( const boost::thread_interrupted& ex )
+        {
+          //                GOOGLE_LOG( INFO ) << "thread interrupted";
+          break;
+        }
+        catch(...)
+        {
+        }
+      }
     }
 
     void BaseRpcServer::processMessage(int clientId, const string& msg) {
@@ -98,7 +105,8 @@ namespace pbrpcpp {
 
                     RpcMessage::parseRequestFrom(in, callId, descriptor, requestMsg);
 
-                    requestReceived(clientId, callId, descriptor, requestMsg);
+                    if( ! stop_ )
+                      requestReceived(clientId, callId, descriptor, requestMsg);
                 }
                     break;
                 case RpcMessage::CANCEL_MSG:
@@ -107,7 +115,8 @@ namespace pbrpcpp {
                     string callId;
 
                     RpcMessage::parseCancelFrom(in, callId);
-                    cancelRequest(clientId, callId);
+                    if( ! stop_ )
+                      cancelRequest(clientId, callId);
                 }
                     break;
             }
