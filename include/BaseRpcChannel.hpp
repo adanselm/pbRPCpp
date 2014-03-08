@@ -104,6 +104,9 @@ namespace pbrpcpp {
         scoped_ptr< Queue<string> > responses_;
         //the response process thread
         boost::thread_group responseProcThreads_;
+
+		boost::mutex mMutex;
+		boost::condition_variable mCondVariable;
     };
 
 }//end name space pbrpcpp
