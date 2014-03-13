@@ -34,8 +34,9 @@ namespace pbrpcpp {
 
     BaseRpcServer::~BaseRpcServer() {
         stop_ = true;
-        requestProcThreads_.interrupt_all();
-        requestProcThreads_.join_all();        
+        requestProcThreads_.interrupt_all(); // Doesn't seem necessary and makes the next line throw an exception 
+        requestProcThreads_.join_all();      
+
     }
     
     void BaseRpcServer::Export(Service* service) {
