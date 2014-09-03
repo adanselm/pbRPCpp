@@ -27,6 +27,7 @@ namespace boost {
 #include "boost/scoped_ptr.hpp"
 #include "boost/scoped_array.hpp"
 #include <sstream>
+#include "google/protobuf/stubs/common.h"
 
 #ifndef SHM_MAX_MSG_SIZE
 #define SHM_MAX_MSG_SIZE 32767
@@ -258,16 +259,22 @@ namespace pbrpcpp {
     
     if(queue_ != 0)
     {
-      try
+      int retryCount = 5;
+      while( retryCount > 0 )
       {
-        queue_->send(&tempData[0], totalSize, 0);
-        return true;
-      }
-      catch(boost::interprocess::interprocess_exception &ex)
-      {
-//        LOG_ERR << ex.what();
+        try
+        {
+          queue_->try_send(&tempData[0], totalSize, 0);
+          return true;
+        }
+        catch(boost::interprocess::interprocess_exception &ex)
+        {
+          --retryCount;
+          //        LOG_ERR << ex.what();
+        }
       }
     }
+    GOOGLE_LOG(ERROR) << "[ShmConnection] Message sending failure after several tries.";
     return false;
   }
   
